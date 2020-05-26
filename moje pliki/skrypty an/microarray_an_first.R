@@ -3,7 +3,7 @@ library(affy)
 #### first ####
 
 # wczytaj pliki .CEL
-affy.data = affy::ReadAffy(celfile.path = "Su_CELs")
+affy.data = affy::ReadAffy(celfile.path = 'moje pliki/dane/Su_CELs')
 # normalizacja dla każdej sondy
 eset.mas5 = affy::mas5(affy.data)
 #  tworzenie macierzy ekpresji
@@ -113,5 +113,9 @@ write.table(union.DE.log2.ratios.uni, "union.DE.log2.ratios.uni.txt", sep="\t", 
 # klastrowanie
 
 
-
-
+a = affy::ReadAffy('C:/Users/kamis/Desktop/micaff/moje pliki/dane/Su_CELs/Brain_1.CEL','C:/Users/kamis/Desktop/micaff/moje pliki/dane/Su_CELs/Brain_2.CEL')
+a2 = affy::mas5(a)
+#  tworzenie macierzy ekpresji
+a3 = affy::exprs(a2)
+a4 = log(a3, 2)
+plot1 = affy::cdfName(a)
