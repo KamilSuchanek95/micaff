@@ -22,7 +22,10 @@ shinyUI(
           downloadButton("downloading.preprocessed.data", "Download preprocessed data")
           ),
         mainPanel(
-          plotOutput("distPlot")
+          plotOutput("qc.stats.plot"),
+          plotOutput("clustering.plot"),
+          plotOutput("nuse.plot"),
+          plotOutput("rle.plot")
         )
       )
     )
