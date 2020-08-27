@@ -1,22 +1,24 @@
+# BiocManager::install("affy")
 library(affy)
+# BiocManager::install("simpleaffy")
+library(simpleaffy)
 
-options(shiny.maxRequestSize=30000*1024^2)
-
+options(shiny.maxRequestSize=30000*1024^10)
+data = 0
+normali
 
 shinyServer(function(input, output) {
+  input$
+  observeEvent(input$read.affymetrix.files, {
+    name <- input$read.affymetrix.files$name
+    datapath <- input$read.affymetrix.files$datapath
     
-  observeEvent(input$file1, {
-    name <- input$file1$name
-    datapath <- input$file1$datapath
-    
-    data <- affy::read.affybatch(datapath)
-    
-    d_mas5 = affy::mas5(data)
-    #  tworzenie macierzy ekpresji
-    d_exprs = affy::exprs(d_mas5)
-    d_log2 = log(d_exprs, 2)
-    
-    e <- 4
-    
+    data <<- affy::read.affybatch(datapath)
+  
+    normalization.algorithm <<- switch(input$normalization.algorithm,
+                                       mas5 = "mas5",
+                                       rma = "rma")
+    print(normalization.algorithm)
     })
+  
 })
