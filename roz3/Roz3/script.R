@@ -28,7 +28,7 @@ phenoData(CLLbatch) = new("AnnotatedDataFrame", data = disease[mt, ], varMetadat
 
 CLLbatch = CLLbatch[, !is.na(CLLbatch$Disease)]
 
-# BiocManager::install("affyQCReport")
+BiocManager::install("affyQCReport")
 library("affyQCReport")
 library("simpleaffy")
 # qc stats
@@ -39,15 +39,6 @@ journalpng(file = "Stats_QC.png")
 qc.stat.plot = simpleaffy::plot(my_qc, type=)
 dev.off()
 
-# CEL = affy::ReadAffy(celfile.path = "/home/kamil/Pulpit/magisterka/dane tam/cel files")
-# CEL.mas5 = call.exprs(CEL, "mas5")
-# CEL.qc = simpleaffy::qc(CEL, CEL.mas5)
-# journalpng(file = "brain_Stats_QC_3_5.png", height = 10)
-# simpleaffy::plot(CEL.qc)
-# dev.off()
-# journalpng(file = "brain_Stats_QC_3_M.png", height = 10)
-# simpleaffy::plot(CEL.qc, usemid = T)
-# dev.off()
 
 
 dd = dist2(log2(exprs(CLLbatch)))
@@ -79,9 +70,10 @@ dataPLM = fitPLM(CLLB)
 boxplot(dataPLM, main="NUSE", ylim = c(0.95, 1.22),
         outline = FALSE, col="lightblue", las=3,
         whisklty=0, staplelty=0)
-Mbox(dataPLM, main="RLE", ylim = c(-0.4, 0.4),
-     outline = FALSE, col="mistyrose", las=3,
-     whisklty=0, staplelty=0)
+
+Mbox(dataPLM, main="RLE",# ylim = c(-0.25, 0.25),
+     las=3, whisklty=3)
+grid()
 
 ###
 

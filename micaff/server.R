@@ -5,12 +5,35 @@ library(simpleaffy)
 library(latticeExtra)
 # BiocManager::install("affyPLM")
 library(affyPLM)
-
+# BiocManager::install("limma")
+library(limma)
 
 options(shiny.maxRequestSize=30000*1024^10)
 data <- 0
-exprs.mas5 <- 0
-exprs.rma <- 0
+data.mas5 <- 0
+data.rma <- 0
+
+display.report <- function(norm.alg, data, output){
+  if(norm.alg == "mas5"){
+    data.norm = simpleaffy::call.exprs(data, "mas5")
+  } else{
+    data.norm = simpleaffy::call.exprs(data, "rma")
+  }
+  ###
+  qc = simpleaffy::qc(data, data.norm)
+  output$qc.stats.plot <- renderPlot({
+    simpleaffy::plot(qc)})
+  ### 
+  dataPLM = fitPLM(data)
+  output$nuse.plot <- renderPlot({ 
+    boxplot(dataPLM, main = "NUSE", outline = FALSE, col="lightblue", 
+            las=3, whisklty=0, staplelty=0)})
+  output$rle.plot <- renderPlot({
+    Mbox(dataPLM, main = "RLE", outline = FALSE, col="mistyrose", 
+         las=3, whisklty=0, staplelty=0)})
+  ### 
+  return(data.norm)
+}
 
 shinyServer(function(input, output) {
   
@@ -20,10 +43,10 @@ shinyServer(function(input, output) {
     datapath <- input$read.affymetrix.files$datapath
     
     data <- affy::read.affybatch(datapath)
-  
+    
     norm.alg <- switch(input$normalization.algorithm,
-                        mas5 = "mas5",
-                        rma = "rma")
+                       mas5 = "mas5",
+                       rma = "rma")
     if(norm.alg == "mas5"){
       data.mas5 = simpleaffy::call.exprs(data, "mas5")
       exprs.mas5 = exprs(data.mas5)
@@ -39,12 +62,12 @@ shinyServer(function(input, output) {
                              args=list(x=dd.row, side="top")))
       output$clustering.plot <- renderPlot({
         levelplot(dd[row.ord, row.ord],
-                     scales=list(x=list(rot=90)), xlab="",
-                     ylab="", legend=legend)})
+                  scales=list(x=list(rot=90)), xlab="",
+                  ylab="", legend=legend)})
       ##
       dataPLM = fitPLM(data)
       output$nuse.plot <- renderPlot({ 
-        boxplot(dataPLM, main="NUSE", outline = FALSE, col="lightblue", 
+        graphics::boxplot(dataPLM, main="NUSE", outline = FALSE, col="lightblue", 
                 las=3, whisklty=0, staplelty=0)})
       output$rle.plot <- renderPlot({
         Mbox(dataPLM, main="RLE", outline = FALSE, col="mistyrose", 
@@ -54,5 +77,5 @@ shinyServer(function(input, output) {
       exprs.rma = exprs(data.rma)
       ###
     }
-    })
+  })
 })
