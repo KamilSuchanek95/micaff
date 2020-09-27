@@ -133,6 +133,7 @@ shinyServer(function(input, output) {
     datapath <- input$read.affymetrix.files$datapath
     
     data <- affy::read.affybatch(datapath)
+    sampleNames(data) = name
     sampleNames(data) = sub("\\.CEL$", "", sampleNames(data))
     num.probes = length(sampleNames(data))
     
