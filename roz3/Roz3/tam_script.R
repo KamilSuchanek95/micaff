@@ -4,7 +4,75 @@ library("affy")
 library("simpleaffy")
 library("affyPLM")
 
-
+# functions 
+My_NUSE_data <- function(x,type=c("plot","values","stats","density"),ylim=c(0.9,1.2),...){
+  
+  compute.nuse <- function(which){
+    nuse <- apply(x@weights[which,],2,sum)
+    1/sqrt(nuse)
+  }
+  
+  type <- match.arg(type)
+  model <- x@model.description$modelsettings$model
+  ## if (type == "values" || type == "stats" || type == "density"){
+  
+  if (x@model.description$R.model$which.parameter.types[3] == 1 & x@model.description$R.model$which.parameter.types[1] == 0 ){
+    grp.rma.se1.median <- apply(se(x), 1,median,na.rm=TRUE)
+    grp.rma.rel.se1.mtx <- sweep(se(x),1,grp.rma.se1.median,FUN='/')
+  } else {
+    # not the default model try constructing them using weights.
+    which <-indexProbesProcessed(x)
+    ses <- matrix(0,length(which) ,4)
+    
+    for (i in 1:length(which))
+      ses[i,] <- compute.nuse(which[[i]])
+    
+    
+    grp.rma.se1.median <- apply(ses, 1,median)
+    grp.rma.rel.se1.mtx <- sweep(ses,1,grp.rma.se1.median,FUN='/')
+  }
+  if (type == "values"){
+    return(grp.rma.rel.se1.mtx)
+  } else if (type == "density"){
+    plotDensity(grp.rma.rel.se1.mtx,xlim=ylim,...)
+  } else if (type=="stats"){
+    Medians <- apply(grp.rma.rel.se1.mtx,2,median)
+    Quantiles <- apply(grp.rma.rel.se1.mtx,2,quantile,prob=c(0.25,0.75))
+    nuse.stats <- rbind(Medians,Quantiles[2,] - Quantiles[1,], Quantiles[1,], Quantiles[2,])
+    rownames(nuse.stats) <- c("median","IQR","25%", "75%")
+    return(nuse.stats)
+  }
+  if (type == "plot"){	
+    boxplot(data.frame(grp.rma.rel.se1.mtx),ylim=ylim,range=0,...)
+  }
+}
+My_RLE_Plot <- function(dataPLM) {
+  par(mar = c(7,5,2,2))
+  brewer.cols <- brewer.pal(num.probes, "Set1")
+  medianchip <- apply(coefs(dataPLM), 1, median)
+  M <- sweep(coefs(dataPLM),1,medianchip,FUN='-')
+  my.quantile = apply(M,2,quantile)
+  my.mini = min(my.quantile["25%",])
+  my.maxi = max(my.quantile["75%",])
+  y.lim = c(my.mini, my.maxi)
+  graphics::boxplot(M, main="RLE Plot", col = brewer.cols,
+                    outline = FALSE, ylim = y.lim, 
+                    las=3, whisklty=0, staplelty=0)
+  grid()
+  abline(0,0)
+}
+My_NUSE_Plot <- function(dataPLM) {
+  par(mar = c(7,5,2,2))
+  brewer.cols <- brewer.pal(num.probes, "Set1")
+  nuse.data = My_NUSE_data(dataPLM, type = "stats")
+  my.mini = min(nuse.data["25%",])
+  my.maxi = max(nuse.data["75%",])
+  y.lim = c(my.mini, my.maxi)
+  NUSE(dataPLM, main="NUSE", ylim = y.lim,
+       outline = FALSE, las=3, whisklty=3, staplelty=0,
+       col = brewer.cols)
+  grid()
+}
 # Wczytanie danych
 cel = affy::ReadAffy(celfile.path = "/home/kamil/Pulpit/magisterka/dane tam/cel files")
 
@@ -45,14 +113,7 @@ dev.off()
 RNAdeg <- AffyRNAdeg(cel)
 plotAffyRNAdeg(RNAdeg)
 
-# PLM i NUSE
-dataPLM = fitPLM(cel, normalize.method = "mas5")
-affyPLM::boxplot(dataPLM, main="NUSE", #ylim = c(0.95, 1.22),
-        # outline = FALSE, col="lightblue", 
-        las=3, whisklty=0, staplelty=0)
-
-Mbox(dataPLM, main="RLE", #ylim = c(-0.4, 0.4),
-     # outline = FALSE, col="mistyrose", 
-     las=3, whisklty=0, staplelty=0)
-
-###
+# RLE i NUSE
+dataPLM = fitPLM(cel)#, background.method = "MAS")
+My_RLE_Plot(dataPLM = dataPLM)
+My_NUSE_Plot(dataPLM)
