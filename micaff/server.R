@@ -1,5 +1,7 @@
 # BiocManager::install("affy")
 library(affy)
+library("genefilter")
+library("RColorBrewer")
 # BiocManager::install("simpleaffy")
 library(simpleaffy)
 library(latticeExtra)
@@ -8,10 +10,80 @@ library(affyPLM)
 # BiocManager::install("limma")
 library(limma)
 
+My_NUSE_data <- function(x,type=c("plot","values","stats","density"),ylim=c(0.9,1.2),...){
+  
+  compute.nuse <- function(which){
+    nuse <- apply(x@weights[which,],2,sum)
+    1/sqrt(nuse)
+  }
+  
+  type <- match.arg(type)
+  model <- x@model.description$modelsettings$model
+  ## if (type == "values" || type == "stats" || type == "density"){
+  
+  if (x@model.description$R.model$which.parameter.types[3] == 1 & x@model.description$R.model$which.parameter.types[1] == 0 ){
+    grp.rma.se1.median <- apply(se(x), 1,median,na.rm=TRUE)
+    grp.rma.rel.se1.mtx <- sweep(se(x),1,grp.rma.se1.median,FUN='/')
+  } else {
+    # not the default model try constructing them using weights.
+    which <-indexProbesProcessed(x)
+    ses <- matrix(0,length(which) ,4)
+    
+    for (i in 1:length(which))
+      ses[i,] <- compute.nuse(which[[i]])
+    
+    
+    grp.rma.se1.median <- apply(ses, 1,median)
+    grp.rma.rel.se1.mtx <- sweep(ses,1,grp.rma.se1.median,FUN='/')
+  }
+  if (type == "values"){
+    return(grp.rma.rel.se1.mtx)
+  } else if (type == "density"){
+    plotDensity(grp.rma.rel.se1.mtx,xlim=ylim,...)
+  } else if (type=="stats"){
+    Medians <- apply(grp.rma.rel.se1.mtx,2,median)
+    Quantiles <- apply(grp.rma.rel.se1.mtx,2,quantile,prob=c(0.25,0.75))
+    nuse.stats <- rbind(Medians,Quantiles[2,] - Quantiles[1,], Quantiles[1,], Quantiles[2,])
+    rownames(nuse.stats) <- c("median","IQR","25%", "75%")
+    return(nuse.stats)
+  }
+  if (type == "plot"){	
+    boxplot(data.frame(grp.rma.rel.se1.mtx),ylim=ylim,range=0,...)
+  }
+}
+My_RLE_Plot <- function(dataPLM) {
+  par(mar = c(7,5,2,2))
+  brewer.cols <- brewer.pal(num.probes, "Set1")
+  medianchip <- apply(coefs(dataPLM), 1, median)
+  M <- sweep(coefs(dataPLM),1,medianchip,FUN='-')
+  my.quantile = apply(M,2,quantile)
+  my.mini = min(my.quantile["25%",])
+  my.maxi = max(my.quantile["75%",])
+  y.lim = c(my.mini, my.maxi)
+  graphics::boxplot(M, main="RLE Plot", col = brewer.cols,
+                    outline = FALSE, ylim = y.lim, 
+                    las=3, whisklty=0, staplelty=0)
+  grid()
+  abline(0,0)
+}
+My_NUSE_Plot <- function(dataPLM) {
+  par(mar = c(7,5,2,2))
+  brewer.cols <- brewer.pal(num.probes, "Set1")
+  nuse.data = My_NUSE_data(dataPLM, type = "stats")
+  my.mini = min(nuse.data["25%",])
+  my.maxi = max(nuse.data["75%",])
+  y.lim = c(my.mini, my.maxi)
+  NUSE(dataPLM, main="NUSE", ylim = y.lim,
+       outline = FALSE, las=3, whisklty=3, staplelty=0,
+       col = brewer.cols)
+  grid()
+}
+
 options(shiny.maxRequestSize=30000*1024^10)
 data <- 0
 data.mas5 <- 0
 data.rma <- 0
+num.probes <- 0
 
 display.report <- function(norm.alg, data, output){
   if(norm.alg == "mas5"){
@@ -20,17 +92,35 @@ display.report <- function(norm.alg, data, output){
     data.norm = simpleaffy::call.exprs(data, "rma")
   }
   ###
-  qc = simpleaffy::qc(data, data.norm)
+  output$boxplot <- renderPlot({
+    par(mar = c(7,5,2,2))
+    brewer.cols <- brewer.pal(num.probes, "Set1")
+    BiocGenerics::boxplot(data, col = brewer.cols, las = 3,
+                          ylab = "Unprocessed log (base 2)scale Probe Intensities")
+    grid()
+  })
+  ###
+  qc = simpleaffy::qc(data)
   output$qc.stats.plot <- renderPlot({
-    simpleaffy::plot(qc)})
+    simpleaffy::plot.qc.stats(qc)})
+  ###
+  dd = dist2(log2(exprs(data)))
+  dd.row <- as.dendrogram(hclust(as.dist(dd)))
+  row.ord <- order.dendrogram(dd.row)
+  legend = list(top=list(fun=latticeExtra::dendrogramGrob,
+                         args=list(x=dd.row, side="top")))
+  output$clustering.plot <- renderPlot({
+    levelplot(dd[row.ord, row.ord],
+              scales=list(x=list(rot=90)), xlab="",
+              ylab="", legend=legend)})
   ### 
   dataPLM = fitPLM(data)
-  output$nuse.plot <- renderPlot({ 
-    boxplot(dataPLM, main = "NUSE", outline = FALSE, col="lightblue", 
-            las=3, whisklty=0, staplelty=0)})
+  
+  output$nuse.plot <- renderPlot({
+    My_NUSE_Plot(dataPLM)
+  })
   output$rle.plot <- renderPlot({
-    Mbox(dataPLM, main = "RLE", outline = FALSE, col="mistyrose", 
-         las=3, whisklty=0, staplelty=0)})
+    My_RLE_Plot(dataPLM)})
   ### 
   return(data.norm)
 }
@@ -43,39 +133,12 @@ shinyServer(function(input, output) {
     datapath <- input$read.affymetrix.files$datapath
     
     data <- affy::read.affybatch(datapath)
+    sampleNames(data) = sub("\\.CEL$", "", sampleNames(data))
+    num.probes = length(sampleNames(data))
     
     norm.alg <- switch(input$normalization.algorithm,
                        mas5 = "mas5",
                        rma = "rma")
-    if(norm.alg == "mas5"){
-      data.mas5 = simpleaffy::call.exprs(data, "mas5")
-      exprs.mas5 = exprs(data.mas5)
-      ###
-      qc = simpleaffy::qc(data, data.mas5)
-      output$qc.stats.plot <- renderPlot({
-        simpleaffy::plot(qc)})
-      ##
-      dd = dist2(log2(exprs(data)))
-      dd.row <- as.dendrogram(hclust(as.dist(dd)))
-      row.ord <- order.dendrogram(dd.row)
-      legend = list(top=list(fun=latticeExtra::dendrogramGrob,
-                             args=list(x=dd.row, side="top")))
-      output$clustering.plot <- renderPlot({
-        levelplot(dd[row.ord, row.ord],
-                  scales=list(x=list(rot=90)), xlab="",
-                  ylab="", legend=legend)})
-      ##
-      dataPLM = fitPLM(data)
-      output$nuse.plot <- renderPlot({ 
-        graphics::boxplot(dataPLM, main="NUSE", outline = FALSE, col="lightblue", 
-                las=3, whisklty=0, staplelty=0)})
-      output$rle.plot <- renderPlot({
-        Mbox(dataPLM, main="RLE", outline = FALSE, col="mistyrose", 
-             las=3, whisklty=0, staplelty=0)})
-    } else{
-      data.rma = simpleaffy::call.exprs(data, "rma")
-      exprs.rma = exprs(data.rma)
-      ###
-    }
+    display.report(data = data, norm.alg = norm.alg, output = output)
   })
 })
