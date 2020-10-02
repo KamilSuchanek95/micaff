@@ -78,7 +78,21 @@ My_NUSE_Plot <- function(dataPLM) {
        col = brewer.cols)
   grid()
 }
-
+My_Box_Plot <- function() {
+  par(mar = c(7,5,2,2))
+  brewer.cols <- brewer.pal(num.probes, "Set1")
+  BiocGenerics::boxplot(data, col = brewer.cols, las = 3,
+                        ylab = "Unprocessed log (base 2)scale Probe Intensities")
+  grid()
+}
+My_check_and_normalise_data <- function(norm.alg, data){
+  if(norm.alg == "mas5"){
+    data.norm = simpleaffy::call.exprs(data, "mas5")
+  } else{
+    data.norm = simpleaffy::call.exprs(data, "rma")
+  }
+  return(data.norm)
+}
 options(shiny.maxRequestSize=30000*1024^10)
 data <- 0
 data.mas5 <- 0
@@ -86,36 +100,30 @@ data.rma <- 0
 num.probes <- 0
 
 display.report <- function(norm.alg, data, output){
-  if(norm.alg == "mas5"){
-    data.norm = simpleaffy::call.exprs(data, "mas5")
-  } else{
-    data.norm = simpleaffy::call.exprs(data, "rma")
-  }
+  
+  data.norm <- My_check_and_normalise_data(norm.alg, data)
   ###
   output$boxplot <- renderPlot({
-    par(mar = c(7,5,2,2))
-    brewer.cols <- brewer.pal(num.probes, "Set1")
-    BiocGenerics::boxplot(data, col = brewer.cols, las = 3,
-                          ylab = "Unprocessed log (base 2)scale Probe Intensities")
-    grid()
+    My_Box_Plot()
   })
   ###
   qc = simpleaffy::qc(data)
   output$qc.stats.plot <- renderPlot({
     simpleaffy::plot.qc.stats(qc)})
   ###
-  dd = dist2(log2(exprs(data)))
-  dd.row <- as.dendrogram(hclust(as.dist(dd)))
-  row.ord <- order.dendrogram(dd.row)
-  legend = list(top=list(fun=latticeExtra::dendrogramGrob,
-                         args=list(x=dd.row, side="top")))
-  output$clustering.plot <- renderPlot({
-    levelplot(dd[row.ord, row.ord],
-              scales=list(x=list(rot=90)), xlab="",
-              ylab="", legend=legend)})
+  rrr = {
+    #dd = dist2(log2(exprs(data)))
+    #dd.row <- as.dendrogram(hclust(as.dist(dd)))
+    #row.ord <- order.dendrogram(dd.row)
+    #legend = list(top=list(fun=latticeExtra::dendrogramGrob,
+    #                       args=list(x=dd.row, side="top")))
+    #output$clustering.plot <- renderPlot({
+    #  levelplot(dd[row.ord, row.ord],
+    #            scales=list(x=list(rot=90)), xlab="",
+    #            ylab="", legend=legend)})
+  }
   ### 
   dataPLM = fitPLM(data)
-  
   output$nuse.plot <- renderPlot({
     My_NUSE_Plot(dataPLM)
   })
@@ -140,6 +148,15 @@ shinyServer(function(input, output) {
     norm.alg <- switch(input$normalization.algorithm,
                        mas5 = "mas5",
                        rma = "rma")
-    display.report(data = data, norm.alg = norm.alg, output = output)
+    
+    data.norm = display.report(data = data, norm.alg = norm.alg, output = output)
+    
+    output$downloading.preprocessed.data <- downloadHandler(
+      filename =  function() {paste("data_", norm.alg,".txt", sep = "")},
+      content = function(file) {write.table(exprs(data.norm), file = file)}
+    )
+    
+    
+    
   })
 })
