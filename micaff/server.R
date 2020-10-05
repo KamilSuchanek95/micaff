@@ -144,7 +144,6 @@ shinyServer(function(input, output, session) {
   observeEvent(input$calculate.stats, {
     display.report(data = data, output = output,
                    num.probes = num.probes)
-    session$sendCustomMessage("Statistics ready.", list(...))  
   })
   
   observeEvent(input$read.affymetrix.files, {
