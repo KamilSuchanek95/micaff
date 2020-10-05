@@ -10,21 +10,22 @@ shinyUI(
       titlePanel("MicAff Application!"),
       sidebarLayout(
         sidebarPanel(
-          fileInput("read.affymetrix.files", "Choose files for analysis",
-                    multiple = TRUE,
-                    accept = c(".CEL", ".cel")),
           radioButtons("normalization.algorithm", "Normalization algorithm:",
                        c("MAS-5" = "mas5",
                          "RMA" = "rma")),
-          checkboxInput("performing QC-Stats", "Perform QC-Stats?", FALSE),
+          fileInput("read.affymetrix.files", "Choose files for analysis",
+                    multiple = TRUE,
+                    accept = c(".CEL", ".cel")),
+          #checkboxInput("performing QC-Stats", "Perform QC-Stats?", FALSE),
           #checkboxInput("performing.clustering", "Perform clustering?", FALSE),
-          checkboxInput("performing.NUSE.RLE", "Perform NUSE and RLE charts?", FALSE),
+          #checkboxInput("performing.NUSE.RLE", "Perform NUSE and RLE charts?", FALSE),
+          actionButton("calculate.stats", "Calculate statistics and plot charts!"),
           downloadButton("downloading.preprocessed.data", "Download preprocessed data")
           ),
         mainPanel(
           plotOutput("boxplot"),
-          plotOutput("qc.stats.plot"),
-          plotOutput("clustering.plot"),
+          plotOutput("qc.stats.plot", width = "100%", height = "100%"),
+          #plotOutput("clustering.plot"),
           plotOutput("nuse.plot"),
           plotOutput("rle.plot")
         )

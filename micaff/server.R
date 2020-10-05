@@ -9,6 +9,7 @@ library(latticeExtra)
 library(affyPLM)
 # BiocManager::install("limma")
 library(limma)
+library(shiny)
 
 My_NUSE_data <- function(x,type=c("plot","values","stats","density"),ylim=c(0.9,1.2),...){
   
@@ -78,7 +79,7 @@ My_NUSE_Plot <- function(dataPLM) {
        col = brewer.cols)
   grid()
 }
-My_Box_Plot <- function() {
+My_Box_Plot <- function(data, num.probes) {
   par(mar = c(7,5,2,2))
   brewer.cols <- brewer.pal(num.probes, "Set1")
   BiocGenerics::boxplot(data, col = brewer.cols, las = 3,
@@ -93,24 +94,24 @@ My_check_and_normalise_data <- function(norm.alg, data){
   }
   return(data.norm)
 }
-options(shiny.maxRequestSize=30000*1024^10)
-data <- 0
-data.mas5 <- 0
-data.rma <- 0
-num.probes <- 0
-
-display.report <- function(norm.alg, data, output){
-  
-  data.norm <- My_check_and_normalise_data(norm.alg, data)
+display.report <- function(data, output, num.probes){
   ###
   output$boxplot <- renderPlot({
-    My_Box_Plot()
+    My_Box_Plot(data = data, num.probes = num.probes)
   })
   ###
+  par()
   qc = simpleaffy::qc(data)
-  output$qc.stats.plot <- renderPlot({
-    simpleaffy::plot.qc.stats(qc)})
+  output$qc.stats.plot <- renderImage({
+    outfile <- tempfile(fileext = '.png')
+    png(outfile, width = 480, height = ceiling(num.probes/4) * 200)
+    simpleaffy::plot.qc.stats(qc)
+    dev.off()
+    list(src = outfile,
+         alt = "This is alternate text")
+    }, deleteFile = TRUE)
   ###
+  journalpng()
   rrr = {
     #dd = dist2(log2(exprs(data)))
     #dd.row <- as.dendrogram(hclust(as.dist(dd)))
@@ -133,30 +134,38 @@ display.report <- function(norm.alg, data, output){
   return(data.norm)
 }
 
-shinyServer(function(input, output) {
+options(shiny.maxRequestSize=30000*1024^10)
+.GlobalEnv$data <- 0
+.GlobalEnv$num.probes <- 0
+.GlobalEnv$output <- 0
+
+shinyServer(function(input, output, session) {
+  
+  observeEvent(input$calculate.stats, {
+    display.report(data = data, output = output,
+                   num.probes = num.probes)
+    session$sendCustomMessage("Statistics ready.", list(...))  
+  })
   
   observeEvent(input$read.affymetrix.files, {
     
     name <- input$read.affymetrix.files$name
     datapath <- input$read.affymetrix.files$datapath
     
-    data <- affy::read.affybatch(datapath)
-    sampleNames(data) = name
-    sampleNames(data) = sub("\\.CEL$", "", sampleNames(data))
-    num.probes = length(sampleNames(data))
+    data <<- affy::read.affybatch(datapath)
+    sampleNames(data) <<- name
+    sampleNames(data) <<- sub("\\.CEL$", "", sampleNames(data))
+    num.probes <<- length(sampleNames(data))
     
     norm.alg <- switch(input$normalization.algorithm,
                        mas5 = "mas5",
                        rma = "rma")
     
-    data.norm = display.report(data = data, norm.alg = norm.alg, output = output)
+    data.norm <<- My_check_and_normalise_data(norm.alg, data)
     
     output$downloading.preprocessed.data <- downloadHandler(
       filename =  function() {paste("data_", norm.alg,".txt", sep = "")},
       content = function(file) {write.table(exprs(data.norm), file = file)}
     )
-    
-    
-    
   })
 })
