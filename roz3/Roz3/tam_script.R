@@ -117,3 +117,63 @@ plotAffyRNAdeg(RNAdeg)
 dataPLM = fitPLM(cel)#, background.method = "MAS")
 My_RLE_Plot(dataPLM = dataPLM)
 My_NUSE_Plot(dataPLM)
+
+###
+
+exprs.eset <- exprs(eset.mas5)
+
+exprs.eset.df <- data.frame(exprs.eset)
+boxplot(exprs.eset.df,col = brewer.cols,las=3)
+
+controls = c("GSM439779", "GSM439780", "GSM439782", "GSM439783", "GSM439787",
+             "GSM439788", "GSM439789", "GSM439792", "GSM439793", "GSM439797",
+             "GSM439799", "GSM439802", "GSM439804", "GSM439808", "GSM439810",
+             "GSM439812", "GSM439814", "GSM439816", "GSM439818", "GSM439819",
+             "GSM439822", "GSM439825", "GSM439826")
+
+library ('limma')
+
+control.array = match(controls, sampleNames(data))
+Difference <- rowMeans(exprs.eset[,-control.array]) - rowMeans(exprs.eset[,control.array])
+Average <- rowMeans(exprs.eset)
+plot(Average, Difference)
+lines(lowess(Average, Difference),
+      col = 'red', lwd = 4)
+abline(h = -2)
+abline(h = 2)
+
+control.array = match(controls, sampleNames(data))
+Difference <- rowMeans(exprs.eset[,-control.array]) - rowMeans(exprs.eset[,control.array])
+control.idx = which(sampleNames(cel) %in% controls)
+fac = c()
+fac[1:num.probes] = "Test"
+fac[control.idx] = "Control"
+population.groups <- factor(fac)
+design <- model.matrix(~population.groups)
+fit <- lmFit (eset.mas5, design)
+fit.eBayes <- eBayes (fit)
+
+lodd <- -log10(fit.eBayes$p.value[,2])
+o1 <- order(abs(Difference), decreasing = TRUE)[1:50]
+oo2 <- order(abs (fit.eBayes$t[,2]), decreasing = TRUE)[1:50]
+oo <- union (o1, oo2)
+ii <- intersect (o1, oo2)
+plot (Difference[-oo], lodd[-oo],
+        cex = .25, xlim = c (-3,3),
+        ylim = range(lodd), xlab = 'Average (log) Fold-change',
+        ylab = 'LOD score – Negative log10 of P-value')
+points(Difference [oo2], lodd [oo2],
+         pch = 5, col ='red', cex = 1,
+         lwd = 1)
+points (Difference[o1], lodd[o1],
+          pch = 18, col = 'blue', cex = 1, lwd = 1)
+
+title("Volcano Plot with moderated t-statistics")
+grid()
+abline(v = c(-1,1), lwd = 0.5)
+abline(h= c(-log10(0.05),-log10(0.01),-log10(0.001)), 
+       col=c('red','blue','black'), lwd = 0.5)
+#legend("topleft", , pch = c(5, 18), col = c('red', 'blue'), cex = 0.75, bg="transparent",
+#       legend = c("First 50 with the lowest p value","First 50 with the highest Fold-change value"))
+
+

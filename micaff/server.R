@@ -48,12 +48,12 @@ My_NUSE_data <- function(x,type=c("plot","values","stats","density"),ylim=c(0.9,
     rownames(nuse.stats) <- c("median","IQR","25%", "75%")
     return(nuse.stats)
   }
-  if (type == "plot"){	
+  if (type == "plot"){
     boxplot(data.frame(grp.rma.rel.se1.mtx),ylim=ylim,range=0,...)
   }
 }
 My_RLE_Plot <- function(dataPLM) {
-  par(mar = c(7,5,2,2))
+  par(mar = c(10,5,2,2))
   brewer.cols <- brewer.pal(num.probes, "Set1")
   medianchip <- apply(coefs(dataPLM), 1, median)
   M <- sweep(coefs(dataPLM),1,medianchip,FUN='-')
@@ -63,12 +63,12 @@ My_RLE_Plot <- function(dataPLM) {
   y.lim = c(my.mini, my.maxi)
   graphics::boxplot(M, main="RLE Plot", col = brewer.cols,
                     outline = FALSE, ylim = y.lim, 
-                    las=3, whisklty=0, staplelty=0)
+                    las=3, whisklty=3, staplelty=0)
   grid()
   abline(0,0)
 }
 My_NUSE_Plot <- function(dataPLM) {
-  par(mar = c(7,5,2,2))
+  par(mar = c(10,5,2,2))
   brewer.cols <- brewer.pal(num.probes, "Set1")
   nuse.data = My_NUSE_data(dataPLM, type = "stats")
   my.mini = min(nuse.data["25%",])
@@ -79,11 +79,11 @@ My_NUSE_Plot <- function(dataPLM) {
        col = brewer.cols)
   grid()
 }
-My_Box_Plot <- function(data, num.probes) {
-  par(mar = c(7,5,2,2))
+My_Box_Plot <- function(data, num.probes, ylab) {
+  par(mar = c(10,5,2,2))
   brewer.cols <- brewer.pal(num.probes, "Set1")
   BiocGenerics::boxplot(data, col = brewer.cols, las = 3,
-                        ylab = "Unprocessed log (base 2)scale Probe Intensities")
+                        ylab = ylab)
   grid()
 }
 My_check_and_normalise_data <- function(norm.alg, data){
@@ -94,10 +94,74 @@ My_check_and_normalise_data <- function(norm.alg, data){
   }
   return(data.norm)
 }
-display.report <- function(data, output, num.probes){
+My_MA_Plot <- function(data.norm, control){
+  exprs.eset <- exprs(data.norm)
+  
+  control.array = match(control, sampleNames(data.norm))
+  Difference <- rowMeans(exprs.eset[,-control.array]) - rowMeans(exprs.eset[,control.array])
+  Average <- rowMeans(exprs.eset)
+  plot(Average, Difference)
+  grid()
+  lines(lowess(Average, Difference),
+        col = 'red', lwd = 4)
+  abline(h = -2)
+  abline(h = 2)
+}
+My_volcano_moderated <- function(data.norm, control){
+  exprs.eset <- exprs(data.norm)
+  control.array = match(control, sampleNames(data.norm))
+  Difference <- rowMeans(exprs.eset[,-control.array]) - rowMeans(exprs.eset[,control.array])
+  control.idx = which(sampleNames(data.norm) %in% control)
+  fac = c()
+  fac[1:num.probes] = "Test"
+  fac[control.idx] = "Control"
+  population.groups <- factor(fac)
+  design <- model.matrix(~population.groups)
+  fit <- lmFit (data.norm, design)
+  fit.eBayes <- eBayes (fit)
+  
+  lodd <- -log10(fit.eBayes$p.value[,2])
+  o1 <- order(abs(Difference), decreasing = TRUE)[1:50]
+  oo2 <- order(abs (fit.eBayes$t[,2]), decreasing = TRUE)[1:50]
+  oo <- union (o1, oo2)
+  ii <- intersect (o1, oo2)
+  plot (Difference[-oo], lodd[-oo],
+        cex = .25, xlim = c (-3,3),
+        ylim = range(lodd), xlab = 'Average (log) Fold-change',
+        ylab = 'LOD score – Negative log10 of P-value')
+  points(Difference [oo2], lodd [oo2],
+         pch = 5, col ='red', cex = 1,
+         lwd = 1)
+  points (Difference[o1], lodd[o1],
+          pch = 18, col = 'blue', cex = 1, lwd = 1)
+  
+  title("Volcano Plot with moderated t-statistics")
+  grid()
+  abline(v = c(-1,1), lwd = 0.5)
+  abline(h= c(-log10(0.05),-log10(0.01),-log10(0.001)), 
+         col=c('red','blue','black'), lwd = 0.5)
+  #legend("topleft", , pch = c(5, 18), col = c('red', 'blue'), cex = 0.75, bg="transparent",
+  #       legend = c("First 50 with the lowest p value","First 50 with the highest Fold-change value"))
+  My_list <- list("fit.eBayes" = fit.eBayes, "ii" = ii)
+  return(My_list)
+}
+My_heatmap <- function(data.norm, num.probes, control, fit.eBayes_ii){
+  par(mar = c(10,5,2,2))
+  ii = fit.eBayes_ii$ii
+  exprs.eset = exprs(data.norm)
+  ii.mat <- exprs.eset[ii,]
+  ii.df <- data.frame(ii.mat)
+  brewer.cols <- brewer.pal(num.probes, "Set1")
+  hmcol <- colorRampPalette(brewer.pal(num.probes, 'Greys'))(256)
+  spcol = c()
+  spcol[1:num.probes] = 'grey10'
+  spcol[which(dimnames(ii.mat)[[2]] %in% control)] = 'grey80'
+  heatmap (ii.mat, col = hmcol, ColSideColors = spcol)#,margins = c (10,15))
+}
+display.report <- function(data, data.norm, input, output, num.probes){
   ###
   output$boxplot <- renderPlot({
-    My_Box_Plot(data = data, num.probes = num.probes)
+    My_Box_Plot(data = data, num.probes = num.probes, ylab = "Unprocessed log (base 2)scale Probe Intensities")
   })
   ###
   par()
@@ -110,19 +174,6 @@ display.report <- function(data, output, num.probes){
     list(src = outfile,
          alt = "This is alternate text")
     }, deleteFile = TRUE)
-  ###
-  journalpng()
-  rrr = {
-    #dd = dist2(log2(exprs(data)))
-    #dd.row <- as.dendrogram(hclust(as.dist(dd)))
-    #row.ord <- order.dendrogram(dd.row)
-    #legend = list(top=list(fun=latticeExtra::dendrogramGrob,
-    #                       args=list(x=dd.row, side="top")))
-    #output$clustering.plot <- renderPlot({
-    #  levelplot(dd[row.ord, row.ord],
-    #            scales=list(x=list(rot=90)), xlab="",
-    #            ylab="", legend=legend)})
-  }
   ### 
   dataPLM = fitPLM(data)
   output$nuse.plot <- renderPlot({
@@ -131,18 +182,35 @@ display.report <- function(data, output, num.probes){
   output$rle.plot <- renderPlot({
     My_RLE_Plot(dataPLM)})
   ### 
-  return(data.norm)
+  output$boxplot.norm <- renderPlot({
+    My_Box_Plot(data = data.norm, num.probes = num.probes, ylab = "Normalized log (base 2)scale Probe Intensities")
+  })
+  ###
+  control = input$input.control.labels
+  output$ma.plot <- renderPlot({
+    My_MA_Plot(data.norm = data.norm, control = control)
+  })
+  ###
+  output$volcano.moderated <- renderPlot({
+    fit.eBayes_ii <<- My_volcano_moderated(data.norm, control = control)
+  })
+  ###
+  output$dendrogram <- renderPlot({
+    My_heatmap(data.norm = data.norm, num.probes = num.probes, control = control, fit.eBayes_ii = fit.eBayes_ii)
+  })
+  #write.table(fit.eBayes$t,"My_fit_eBayes") 
 }
 
 options(shiny.maxRequestSize=30000*1024^10)
 .GlobalEnv$data <- 0
+.GlobalEnv$data.norm <- 0
 .GlobalEnv$num.probes <- 0
-.GlobalEnv$output <- 0
+.GlobalEnv$fit.eBayes_ii <- 0
 
 shinyServer(function(input, output, session) {
   
   observeEvent(input$calculate.stats, {
-    display.report(data = data, output = output,
+    display.report(data = data, data.norm = data.norm, input = input, output = output,
                    num.probes = num.probes)
   })
   
@@ -156,15 +224,22 @@ shinyServer(function(input, output, session) {
     sampleNames(data) <<- sub("\\.CEL$", "", sampleNames(data))
     num.probes <<- length(sampleNames(data))
     
+    updateSelectInput(session = session, inputId = "input.control.labels",
+                      choices = c(sampleNames(data)))
+    
     norm.alg <- switch(input$normalization.algorithm,
                        mas5 = "mas5",
                        rma = "rma")
     
     data.norm <<- My_check_and_normalise_data(norm.alg, data)
     
-    output$downloading.preprocessed.data <- downloadHandler(
+    output$downloading.normalized.data <- downloadHandler(
       filename =  function() {paste("data_", norm.alg,".txt", sep = "")},
       content = function(file) {write.table(exprs(data.norm), file = file)}
+    )
+    
+    output$downloading.site <- downloadHandler(
+      filename =  function() {"site_full"}
     )
   })
 })
