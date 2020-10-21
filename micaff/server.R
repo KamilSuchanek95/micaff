@@ -10,6 +10,8 @@ library(affyPLM)
 # BiocManager::install("limma")
 library(limma)
 library(shiny)
+library("pheatmap")
+
 
 My_NUSE_data <- function(x,type=c("plot","values","stats","density"),ylim=c(0.9,1.2),...){
   
@@ -107,7 +109,7 @@ My_MA_Plot <- function(data.norm, control){
   abline(h = -2)
   abline(h = 2)
 }
-My_volcano_moderated <- function(data.norm, control){
+My_volcano_moderated <- function(data.norm, control, number.of.relevant.genes){
   exprs.eset <- exprs(data.norm)
   control.array = match(control, sampleNames(data.norm))
   Difference <- rowMeans(exprs.eset[,-control.array]) - rowMeans(exprs.eset[,control.array])
@@ -121,8 +123,8 @@ My_volcano_moderated <- function(data.norm, control){
   fit.eBayes <- eBayes (fit)
   
   lodd <- -log10(fit.eBayes$p.value[,2])
-  o1 <- order(abs(Difference), decreasing = TRUE)[1:50]
-  oo2 <- order(abs (fit.eBayes$t[,2]), decreasing = TRUE)[1:50]
+  o1 <- order(abs(Difference), decreasing = TRUE)[1:number.of.relevant.genes]
+  oo2 <- order(abs (fit.eBayes$t[,2]), decreasing = TRUE)[1:number.of.relevant.genes]
   oo <- union (o1, oo2)
   ii <- intersect (o1, oo2)
   plot (Difference[-oo], lodd[-oo],
@@ -150,16 +152,26 @@ My_heatmap <- function(data.norm, num.probes, control, fit.eBayes_ii){
   ii = fit.eBayes_ii$ii
   exprs.eset = exprs(data.norm)
   ii.mat <- exprs.eset[ii,]
-  ii.df <- data.frame(ii.mat)
-  brewer.cols <- brewer.pal(num.probes, "Set1")
-  hmcol <- colorRampPalette(brewer.pal(num.probes, 'Greys'))(256)
-  spcol = c()
-  spcol[1:num.probes] = 'grey10'
-  spcol[which(dimnames(ii.mat)[[2]] %in% control)] = 'grey80'
-  heatmap (ii.mat, col = hmcol, ColSideColors = spcol)#,margins = c (10,15))
+  # ii.df <- data.frame(ii.mat)
+  # brewer.cols <- brewer.pal(num.probes, "Set1")
+  # hmcol <- colorRampPalette(brewer.pal(num.probes, 'Greys'))(256)
+  # spcol = c()
+  # spcol[1:num.probes] = 'grey10'
+  # spcol[which(dimnames(ii.mat)[[2]] %in% control)] = 'grey80'
+  # heatmap (ii.mat, col = hmcol, ColSideColors = spcol)#,margins = c (10,15))
+  
+  where_control = which(sampleNames(data.norm) %in% control)
+  col_groups = c()
+  col_groups[1:num.probes] = "Test"
+  col_groups[where_control] = "Control"
+  mat_col = data.frame(group = col_groups)
+  # mat_colors = list(group = brewer.pal(2,"Set1"))
+  # mat_colors$group = mat_colors$group[1:2]
+  rownames(mat_col) = colnames(data.norm)
+  pheatmap(mat = abs(ii.mat), annotation_col = mat_col)# , clustering_method = "complete")
 }
 display.report <- function(data, data.norm, input, output, num.probes){
-  ###
+
   output$boxplot <- renderPlot({
     My_Box_Plot(data = data, num.probes = num.probes, ylab = "Unprocessed log (base 2)scale Probe Intensities")
   })
@@ -168,7 +180,7 @@ display.report <- function(data, data.norm, input, output, num.probes){
   qc = simpleaffy::qc(data)
   output$qc.stats.plot <- renderImage({
     outfile <- tempfile(fileext = '.png')
-    png(outfile, width = 480, height = ceiling(num.probes/4) * 200)
+    png(outfile, width = 480, height = ceiling(num.probes/4) * 100)
     simpleaffy::plot.qc.stats(qc)
     dev.off()
     list(src = outfile,
@@ -191,11 +203,12 @@ display.report <- function(data, data.norm, input, output, num.probes){
     My_MA_Plot(data.norm = data.norm, control = control)
   })
   ###
+  number.of.relevant.genes = input$num.genes
   output$volcano.moderated <- renderPlot({
-    fit.eBayes_ii <<- My_volcano_moderated(data.norm, control = control)
+    fit.eBayes_ii <<- My_volcano_moderated(data.norm, control = control, number.of.relevant.genes = number.of.relevant.genes)
   })
   ###
-  output$dendrogram <- renderPlot({
+  output$dentrogram.moderated <- renderPlot({
     My_heatmap(data.norm = data.norm, num.probes = num.probes, control = control, fit.eBayes_ii = fit.eBayes_ii)
   })
   #write.table(fit.eBayes$t,"My_fit_eBayes") 
@@ -238,8 +251,7 @@ shinyServer(function(input, output, session) {
       content = function(file) {write.table(exprs(data.norm), file = file)}
     )
     
-    output$downloading.site <- downloadHandler(
-      filename =  function() {"site_full"}
-    )
+    #output$downloading.site <- downloadHandler(
+    #)
   })
 })

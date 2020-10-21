@@ -3,6 +3,7 @@ library("RColorBrewer")
 library("affy")
 library("simpleaffy")
 library("affyPLM")
+library("pheatmap")
 
 # functions 
 My_NUSE_data <- function(x,type=c("plot","values","stats","density"),ylim=c(0.9,1.2),...){
@@ -130,6 +131,12 @@ controls = c("GSM439779", "GSM439780", "GSM439782", "GSM439783", "GSM439787",
              "GSM439799", "GSM439802", "GSM439804", "GSM439808", "GSM439810",
              "GSM439812", "GSM439814", "GSM439816", "GSM439818", "GSM439819",
              "GSM439822", "GSM439825", "GSM439826")
+control = c( "C002_Control_F_87", "C005_Control_M_91", "C006_Control_F_71", "C007_Control_M_54",
+             "C014_Control_M91",  "C015_Control_M_91", "C013_Control_M_61", "C011_Control_F_89",
+             "C017_Control_M_72", "C016_Control_M_60", "C018_Control_F_67", "C010_Control_F_90",
+             "C019_Control_F_46", "C020_Control_M_25", "C022_Control_F_68", "C024_Control_F_78",
+             "C025_Control_F_88", "C023_Control_M_38", "C026_Control_M_58", "C021_Control_M_25",
+             "C027_Control_M_90", "C008_Control_F_94", "C028_Control_F_54")
 
 library ('limma')
 
@@ -176,4 +183,29 @@ abline(h= c(-log10(0.05),-log10(0.01),-log10(0.001)),
 #legend("topleft", , pch = c(5, 18), col = c('red', 'blue'), cex = 0.75, bg="transparent",
 #       legend = c("First 50 with the lowest p value","First 50 with the highest Fold-change value"))
 
+par(mar = c(10,10,10,10))
+ii = fit.eBayes_ii$ii
+exprs.eset = exprs(data.norm)
+ii.mat <- exprs.eset[ii,]
+ii.df <- data.frame(ii.mat)
+brewer.cols <- brewer.pal(num.probes, "Set1")
+hmcol <- colorRampPalette(brewer.pal(num.probes, 'Greys'))(256)
+spcol = c()
+spcol[1:num.probes] = 'grey10'
+spcol[which(dimnames(ii.mat)[[2]] %in% control)] = 'grey80'
+heatmap (ii.mat, col = hmcol, ColSideColors = spcol)#,margins = c (10,15))
+heatmap (ii.mat, ColSideColors = spcol)
 
+where_control = which(sampleNames(data.norm) %in% control)
+col_groups = c()
+col_groups[1:num.probes] = "Test"
+col_groups[where_control] = "Control"
+
+mat_col = data.frame(group = col_groups)
+
+mat_colors = list(group = brewer.pal(2,"Set1"))
+mat_colors$group = mat_colors$group[1:2]
+
+rownames(mat_col) = colnames(data.norm)
+
+pheatmap(mat = abs(ii.mat), annotation_col = mat_col, clustering_method = "complete")
