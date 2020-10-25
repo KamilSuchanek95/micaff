@@ -49,10 +49,10 @@ shinyUI(
                  ), 
         tabPanel("Checking normalization results", 
                  plotOutput("boxplot.norm"),
-                 plotOutput("ma.plot"),
+                 plotOutput("ma.plot", height = "800px"),
                  #plotOutput("volcano"),
                  #plotOutput("dendrogram"),
-                 plotOutput("volcano.moderated"),
+                 plotOutput("volcano.moderated", height = "800px"),
                  plotOutput("dentrogram.moderated")
                  )
       )

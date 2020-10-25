@@ -187,7 +187,9 @@ display.report <- function(data, data.norm, input, output, num.probes){
   qc = simpleaffy::qc(data)
   output$qc.stats.plot <- renderImage({
     outfile <- tempfile(fileext = '.png')
-    png(outfile, width = 480, height = ceiling(num.probes/4) * 100)
+    width2 <- 100
+    if(num.probes < 20){width2 <- 200}
+    png(outfile, width = 480, height = ceiling(num.probes/4) * width2)
     simpleaffy::plot.qc.stats(qc)
     dev.off()
     list(src = outfile,
