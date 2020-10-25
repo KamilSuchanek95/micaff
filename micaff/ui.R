@@ -1,12 +1,15 @@
 library(shiny)
-library(shinyjs)
+library(shinythemes)
 
-jsfile <- "getdata.js"
-cssfile <- "style.css"
-js_scroll_file <-'scroll.js'
+
+#library(shinyjs)
+
+#jsfile <- "getdata.js"
+#cssfile <- "style.css"
+#js_scroll_file <-'scroll.js'
 
 shinyUI(
-    fluidPage(
+    fluidPage(theme = shinytheme("united"),
       titlePanel("MicAff Application!"),
       
       fluidRow(
@@ -28,7 +31,9 @@ shinyUI(
                ),
         column(3,
                numericInput("num.genes", "Number of relevant genes", 50, min = 2, max = 150, step = 1, width = NULL)
-               ),
+               )
+      ),
+      fluidRow(
         actionButton("calculate.stats", "Calculate statistics and plot charts!"),
         downloadButton("downloading.normalized.data", "Download normalized data"),
         downloadButton("downloading.site", "Download the sites state.")

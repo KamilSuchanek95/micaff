@@ -172,10 +172,17 @@ My_heatmap <- function(data.norm, num.probes, control, fit.eBayes_ii){
 }
 display.report <- function(data, data.norm, input, output, num.probes){
 
+  progress <- shiny::Progress$new()
+  on.exit(progress$close())
+  progress$set(message = "Creating report", value = 0)
+  n <- 8
+  progress$inc(1/n, detail = "boxplot of unnormalized data")
+  
   output$boxplot <- renderPlot({
     My_Box_Plot(data = data, num.probes = num.probes, ylab = "Unprocessed log (base 2)scale Probe Intensities")
   })
   ###
+  progress$inc(1/n, detail = "calculating and plot qc report")
   par()
   qc = simpleaffy::qc(data)
   output$qc.stats.plot <- renderImage({
@@ -187,6 +194,7 @@ display.report <- function(data, data.norm, input, output, num.probes){
          alt = "This is alternate text")
     }, deleteFile = TRUE)
   ### 
+  progress$inc(2/n, detail = "calculating PLM and plot NUSE and RLE")
   dataPLM = fitPLM(data)
   output$nuse.plot <- renderPlot({
     My_NUSE_Plot(dataPLM)
@@ -194,20 +202,24 @@ display.report <- function(data, data.norm, input, output, num.probes){
   output$rle.plot <- renderPlot({
     My_RLE_Plot(dataPLM)})
   ### 
+  progress$inc(1/n, detail = "boxplot of normalized data")
   output$boxplot.norm <- renderPlot({
     My_Box_Plot(data = data.norm, num.probes = num.probes, ylab = "Normalized log (base 2)scale Probe Intensities")
   })
   ###
+  progress$inc(1/n, detail = "MA plot")
   control = input$input.control.labels
   output$ma.plot <- renderPlot({
     My_MA_Plot(data.norm = data.norm, control = control)
   })
   ###
+  progress$inc(1/n, detail = "Volcano-plot with moderated statistics")
   number.of.relevant.genes = input$num.genes
   output$volcano.moderated <- renderPlot({
     fit.eBayes_ii <<- My_volcano_moderated(data.norm, control = control, number.of.relevant.genes = number.of.relevant.genes)
   })
   ###
+  progress$inc(1/n, detail = "heatmap plot")
   output$dentrogram.moderated <- renderPlot({
     My_heatmap(data.norm = data.norm, num.probes = num.probes, control = control, fit.eBayes_ii = fit.eBayes_ii)
   })
@@ -229,23 +241,29 @@ shinyServer(function(input, output, session) {
   
   observeEvent(input$read.affymetrix.files, {
     
+    progress <- shiny::Progress$new()
+    on.exit(progress$close())
+    progress$set(message = "Reading and normalizing data", value = 0)
+    n <- 4
+    progress$inc(1/n, detail = "reading data")
     name <- input$read.affymetrix.files$name
     datapath <- input$read.affymetrix.files$datapath
-    
     data <<- affy::read.affybatch(datapath)
     sampleNames(data) <<- name
     sampleNames(data) <<- sub("\\.CEL$", "", sampleNames(data))
     num.probes <<- length(sampleNames(data))
     
+    progress$inc(1/n, detail = "updating sample names")
     updateSelectInput(session = session, inputId = "input.control.labels",
                       choices = c(sampleNames(data)))
     
     norm.alg <- switch(input$normalization.algorithm,
                        mas5 = "mas5",
                        rma = "rma")
-    
+    progress$inc(1/n, detail = "normalizing data")
     data.norm <<- My_check_and_normalise_data(norm.alg, data)
     
+    progress$inc(1/n, detail = "preparing to share normalized data")
     output$downloading.normalized.data <- downloadHandler(
       filename =  function() {paste("data_", norm.alg,".txt", sep = "")},
       content = function(file) {write.table(exprs(data.norm), file = file)}
