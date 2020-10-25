@@ -81,11 +81,11 @@ My_NUSE_Plot <- function(dataPLM) {
        col = brewer.cols)
   grid()
 }
-My_Box_Plot <- function(data, num.probes, ylab) {
+My_Box_Plot <- function(data, num.probes, ylab, main) {
   par(mar = c(10,5,2,2))
   brewer.cols <- brewer.pal(num.probes, "Set1")
   BiocGenerics::boxplot(data, col = brewer.cols, las = 3,
-                        ylab = ylab)
+                        ylab = ylab, main = main)
   grid()
 }
 My_check_and_normalise_data <- function(norm.alg, data){
@@ -102,7 +102,7 @@ My_MA_Plot <- function(data.norm, control){
   control.array = match(control, sampleNames(data.norm))
   Difference <- rowMeans(exprs.eset[,-control.array]) - rowMeans(exprs.eset[,control.array])
   Average <- rowMeans(exprs.eset)
-  plot(Average, Difference)
+  plot(Average, Difference, ylab = "M - log2 fold change", xlab = "A - log2 mean expression", main = "MA plot")
   grid()
   lines(lowess(Average, Difference),
         col = 'red', lwd = 4)
@@ -168,8 +168,9 @@ My_heatmap <- function(data.norm, num.probes, control, fit.eBayes_ii){
   # mat_colors = list(group = brewer.pal(2,"Set1"))
   # mat_colors$group = mat_colors$group[1:2]
   rownames(mat_col) = colnames(data.norm)
-  pheatmap(mat = abs(ii.mat), annotation_col = mat_col)# , clustering_method = "complete")
-}
+  pheatmap(mat = abs(ii.mat), annotation_col = mat_col, main = "Heatmap")# , clustering_method = "complete")
+
+  }
 display.report <- function(data, data.norm, input, output, num.probes){
 
   progress <- shiny::Progress$new()
@@ -179,7 +180,7 @@ display.report <- function(data, data.norm, input, output, num.probes){
   progress$inc(1/n, detail = "boxplot of unnormalized data")
   
   output$boxplot <- renderPlot({
-    My_Box_Plot(data = data, num.probes = num.probes, ylab = "Unprocessed log (base 2)scale Probe Intensities")
+    My_Box_Plot(data = data, num.probes = num.probes, ylab = "Unprocessed log (base 2)scale Probe Intensities", main = "Boxplot of unnormalized data")
   })
   ###
   progress$inc(1/n, detail = "calculating and plot qc report")
@@ -206,7 +207,7 @@ display.report <- function(data, data.norm, input, output, num.probes){
   ### 
   progress$inc(1/n, detail = "boxplot of normalized data")
   output$boxplot.norm <- renderPlot({
-    My_Box_Plot(data = data.norm, num.probes = num.probes, ylab = "Normalized log (base 2)scale Probe Intensities")
+    My_Box_Plot(data = data.norm, num.probes = num.probes, ylab = "Normalized log (base 2)scale Probe Intensities", main = "Boxplot of normalized data")
   })
   ###
   progress$inc(1/n, detail = "MA plot")

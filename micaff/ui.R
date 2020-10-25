@@ -10,8 +10,9 @@ library(shinythemes)
 
 shinyUI(
     fluidPage(theme = shinytheme("united"),
+              br(),
       titlePanel("MicAff Application!"),
-      
+      br(),
       fluidRow(
         column(3,
                radioButtons("normalization.algorithm", "Normalization algorithm:",
@@ -33,30 +34,38 @@ shinyUI(
                numericInput("num.genes", "Number of relevant genes", 50, min = 2, max = 150, step = 1, width = NULL)
                )
       ),
+      br(),
       fluidRow(
         actionButton("calculate.stats", "Calculate statistics and plot charts!"),
         downloadButton("downloading.normalized.data", "Download normalized data"),
         downloadButton("downloading.site", "Download the sites state.")
       ),
-      hr(),
- 
+      br(), hr(), br(),
       tabsetPanel(
         tabPanel("Quality control charts", 
+                 br(),
                  plotOutput("boxplot"),
+                 br(),
                  plotOutput("qc.stats.plot", width = "100%", height = "100%"),
+                 br(),
                  plotOutput("nuse.plot"),
+                 br(),
                  plotOutput("rle.plot")
                  ), 
         tabPanel("Checking normalization results", 
+                 br(),
                  plotOutput("boxplot.norm"),
-                 plotOutput("ma.plot", height = "800px"),
+                 br(),
+                 plotOutput("ma.plot", height = "800px")
+                 ),
+        tabPanel("Statistics summaries", 
                  #plotOutput("volcano"),
                  #plotOutput("dendrogram"),
+                 br(),
                  plotOutput("volcano.moderated", height = "800px"),
-                 plotOutput("dentrogram.moderated")
+                 br(),
+                 plotOutput("dentrogram.moderated", height = "800px")
                  )
       )
-      # titlePanel("Quality control charts:"),
-      # titlePanel("Checking normalization results:"),
     )
 )
