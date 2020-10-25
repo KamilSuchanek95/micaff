@@ -171,14 +171,8 @@ My_heatmap <- function(data.norm, num.probes, control, fit.eBayes_ii){
   pheatmap(mat = abs(ii.mat), annotation_col = mat_col, main = "Heatmap")# , clustering_method = "complete")
 
   }
-display.report <- function(data, data.norm, input, output, num.probes){
-
-  progress <- shiny::Progress$new()
-  on.exit(progress$close())
-  progress$set(message = "Creating report", value = 0)
-  n <- 8
+display.report <- function(data, data.norm, input, output, num.probes, progress, n){
   progress$inc(1/n, detail = "boxplot of unnormalized data")
-  
   output$boxplot <- renderPlot({
     My_Box_Plot(data = data, num.probes = num.probes, ylab = "Unprocessed log (base 2)scale Probe Intensities", main = "Boxplot of unnormalized data")
   })
@@ -238,8 +232,13 @@ options(shiny.maxRequestSize=30000*1024^10)
 shinyServer(function(input, output, session) {
   
   observeEvent(input$calculate.stats, {
+    progress <- shiny::Progress$new()
+    on.exit(progress$close())
+    progress$set(message = "Creating report", value = 0)
+    n <- 9
     display.report(data = data, data.norm = data.norm, input = input, output = output,
-                   num.probes = num.probes)
+                   num.probes = num.probes, progress = progress, n = n)
+    progress$inc(1/n, detail = "rendering charts")
   })
   
   observeEvent(input$read.affymetrix.files, {
