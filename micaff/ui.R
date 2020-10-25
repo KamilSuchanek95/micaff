@@ -31,14 +31,15 @@ shinyUI(
             multiple = TRUE, selected = c("first you have to load data!", "--none--"))
                ),
         column(3,
-               numericInput("num.genes", "Number of relevant genes", 50, min = 2, max = 150, step = 1, width = NULL)
+               numericInput("num.genes", "Number of relevant genes", 50, min = 2, max = 150, step = 1, width = NULL),
+               actionButton("update.statistics.plots", "Update relevant genes")
                )
       ),
       br(),
       fluidRow(
-        actionButton("calculate.stats", "Calculate statistics and plot charts!"),
+        actionButton("calculate.stats", "Calculate statistics and plot charts"),
         downloadButton("downloading.normalized.data", "Download normalized data"),
-        downloadButton("downloading.site", "Download the sites state.")
+        downloadButton("downloading.pvals", "Download the Bayesian statistics")
       ),
       br(), hr(), br(),
       tabsetPanel(
