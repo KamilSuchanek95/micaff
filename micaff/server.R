@@ -136,7 +136,7 @@ My_volcano_moderated <- function(data.norm, control, number.of.relevant.genes){
          lwd = 1)
   points (Difference[o1], lodd[o1],
           pch = 18, col = 'blue', cex = 1, lwd = 1)
-  
+  text(Difference[ii], lodd[ii], row.names(data.norm)[ii], pos = 3)
   title("Volcano Plot with moderated t-statistics")
   grid()
   abline(v = c(-1,1), lwd = 0.5)
@@ -171,14 +171,8 @@ My_heatmap <- function(data.norm, num.probes, control, fit.eBayes_ii){
   pheatmap(mat = abs(ii.mat), annotation_col = mat_col, main = "Heatmap")# , clustering_method = "complete")
 
   }
-display.report <- function(data, data.norm, input, output, num.probes){
-
-  progress <- shiny::Progress$new()
-  on.exit(progress$close())
-  progress$set(message = "Creating report", value = 0)
-  n <- 8
+display.report <- function(data, data.norm, input, output, num.probes, progress, n, norm.alg){
   progress$inc(1/n, detail = "boxplot of unnormalized data")
-  
   output$boxplot <- renderPlot({
     My_Box_Plot(data = data, num.probes = num.probes, ylab = "Unprocessed log (base 2)scale Probe Intensities", main = "Boxplot of unnormalized data")
   })
@@ -226,7 +220,18 @@ display.report <- function(data, data.norm, input, output, num.probes){
   output$dentrogram.moderated <- renderPlot({
     My_heatmap(data.norm = data.norm, num.probes = num.probes, control = control, fit.eBayes_ii = fit.eBayes_ii)
   })
-  #write.table(fit.eBayes$t,"My_fit_eBayes") 
+  ###
+  tab = topTable(fit.eBayes, coef = 2, adjust.method = "BH", number = length(exprs(data.norm)), 
+                 sort.by = "none")
+  progress$inc(1/n, detail = "preparing to share statistics")
+  # rowidx = order(abs(fit.eBayes$t[,"population.groupsTest"]))
+  output$downloading.pvals <- downloadHandler(
+    filename =  function() {paste("p-vals_", norm.alg,".txt", sep = "")},
+    content = function(file) {write.table(tab, file = file)}
+  )
+  ###
+  output$table.relevant <- renderTable(tab[fit.eBayes_ii$ii,],
+                                       rownames = TRUE)
 }
 
 options(shiny.maxRequestSize=30000*1024^10)
@@ -234,12 +239,18 @@ options(shiny.maxRequestSize=30000*1024^10)
 .GlobalEnv$data.norm <- 0
 .GlobalEnv$num.probes <- 0
 .GlobalEnv$fit.eBayes_ii <- 0
+.GlobalEnv$norm.alg <- 0
 
 shinyServer(function(input, output, session) {
   
   observeEvent(input$calculate.stats, {
+    progress <- shiny::Progress$new()
+    on.exit(progress$close())
+    progress$set(message = "Creating report", value = 0)
+    n <- 10
     display.report(data = data, data.norm = data.norm, input = input, output = output,
-                   num.probes = num.probes)
+                   num.probes = num.probes, progress = progress, n = n, norm.alg = norm.alg)
+    progress$inc(1/n, detail = "rendering charts")
   })
   
   observeEvent(input$read.affymetrix.files, {
@@ -260,7 +271,7 @@ shinyServer(function(input, output, session) {
     updateSelectInput(session = session, inputId = "input.control.labels",
                       choices = c(sampleNames(data)))
     
-    norm.alg <- switch(input$normalization.algorithm,
+    norm.alg <<- switch(input$normalization.algorithm,
                        mas5 = "mas5",
                        rma = "rma")
     progress$inc(1/n, detail = "normalizing data")
@@ -272,7 +283,17 @@ shinyServer(function(input, output, session) {
       content = function(file) {write.table(exprs(data.norm), file = file)}
     )
     
-    #output$downloading.site <- downloadHandler(
-    #)
+  })
+  
+  observeEvent(input$update.statistics.plots, {
+    number.of.relevant.genes = input$num.genes
+    control = input$input.control.labels
+    output$volcano.moderated <- renderPlot({
+      fit.eBayes_ii <<- My_volcano_moderated(data.norm, control = control, number.of.relevant.genes = number.of.relevant.genes)
+    })
+    ###
+    output$dentrogram.moderated <- renderPlot({
+      My_heatmap(data.norm = data.norm, num.probes = num.probes, control = control, fit.eBayes_ii = fit.eBayes_ii)
+    })
   })
 })

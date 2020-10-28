@@ -4,6 +4,7 @@ library("affy")
 library("simpleaffy")
 library("affyPLM")
 library("pheatmap")
+library(limma)
 
 # functions 
 My_NUSE_data <- function(x,type=c("plot","values","stats","density"),ylim=c(0.9,1.2),...){
@@ -137,9 +138,7 @@ control = c( "C002_Control_F_87", "C005_Control_M_91", "C006_Control_F_71", "C00
              "C019_Control_F_46", "C020_Control_M_25", "C022_Control_F_68", "C024_Control_F_78",
              "C025_Control_F_88", "C023_Control_M_38", "C026_Control_M_58", "C021_Control_M_25",
              "C027_Control_M_90", "C008_Control_F_94", "C028_Control_F_54")
-
-library ('limma')
-
+data = cel
 control.array = match(controls, sampleNames(data))
 Difference <- rowMeans(exprs.eset[,-control.array]) - rowMeans(exprs.eset[,control.array])
 Average <- rowMeans(exprs.eset)
@@ -161,8 +160,8 @@ fit <- lmFit (eset.mas5, design)
 fit.eBayes <- eBayes (fit)
 
 lodd <- -log10(fit.eBayes$p.value[,2])
-o1 <- order(abs(Difference), decreasing = TRUE)[1:50]
-oo2 <- order(abs (fit.eBayes$t[,2]), decreasing = TRUE)[1:50]
+o1 <- order(abs(Difference), decreasing = TRUE)[1:30]
+oo2 <- order(abs (fit.eBayes$t[,2]), decreasing = TRUE)[1:30]
 oo <- union (o1, oo2)
 ii <- intersect (o1, oo2)
 plot (Difference[-oo], lodd[-oo],
@@ -174,7 +173,7 @@ points(Difference [oo2], lodd [oo2],
          lwd = 1)
 points (Difference[o1], lodd[o1],
           pch = 18, col = 'blue', cex = 1, lwd = 1)
-
+text(Difference[ii], lodd[ii], row.names(data)[ii], pos = 3)
 title("Volcano Plot with moderated t-statistics")
 grid()
 abline(v = c(-1,1), lwd = 0.5)
@@ -209,3 +208,33 @@ mat_colors$group = mat_colors$group[1:2]
 rownames(mat_col) = colnames(data.norm)
 
 pheatmap(mat = abs(ii.mat), annotation_col = mat_col, clustering_method = "complete")
+
+
+tab = topTable(fit.eBayes, coef = 2, adjust.method = "BH", number = 50, 
+               sort.by = "p")
+tab
+
+topgenes = tab[tab[, "adj.P.Val"] < 0.5]
+dim(topgenes)
+
+###
+lodd <- -log10(fit.eBayes$p.value[,2])
+o1 <- order(abs(Difference), decreasing = TRUE)[1:50]
+oo2 <- order(abs (fit.eBayes$t[,2]), decreasing = TRUE)[1:50]
+oo <- union (o1, oo2)
+ii <- intersect (o1, oo2)
+plot (Difference[-oo], lodd[-oo],
+      cex = .25, xlim = c (-3,3),
+      ylim = range(lodd), xlab = 'Average (log) Fold-change',
+      ylab = 'LOD score – Negative log10 of P-value')
+points(Difference [oo2], lodd [oo2],
+       pch = 5, col ='red', cex = 1,
+       lwd = 1)
+points (Difference[o1], lodd[o1],
+        pch = 18, col = 'blue', cex = 1, lwd = 1)
+
+title("Volcano Plot with moderated t-statistics")
+grid()
+abline(v = c(-1,1), lwd = 0.5)
+abline(h= c(-log10(0.05),-log10(0.01),-log10(0.001)), 
+       col=c('red','blue','black'), lwd = 0.5)
