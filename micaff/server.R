@@ -136,7 +136,7 @@ My_volcano_moderated <- function(data.norm, control, number.of.relevant.genes){
          lwd = 1)
   points (Difference[o1], lodd[o1],
           pch = 18, col = 'blue', cex = 1, lwd = 1)
-  
+  text(Difference[ii], lodd[ii], row.names(data.norm)[ii], pos = 3)
   title("Volcano Plot with moderated t-statistics")
   grid()
   abline(v = c(-1,1), lwd = 0.5)
@@ -221,11 +221,17 @@ display.report <- function(data, data.norm, input, output, num.probes, progress,
     My_heatmap(data.norm = data.norm, num.probes = num.probes, control = control, fit.eBayes_ii = fit.eBayes_ii)
   })
   ###
+  tab = topTable(fit.eBayes, coef = 2, adjust.method = "BH", number = length(exprs(data.norm)), 
+                 sort.by = "none")
   progress$inc(1/n, detail = "preparing to share statistics")
+  # rowidx = order(abs(fit.eBayes$t[,"population.groupsTest"]))
   output$downloading.pvals <- downloadHandler(
     filename =  function() {paste("p-vals_", norm.alg,".txt", sep = "")},
-    content = function(file) {write.table(fit.eBayes_ii$fit.eBayes$t, file = file)}
+    content = function(file) {write.table(tab, file = file)}
   )
+  ###
+  output$table.relevant <- renderTable(tab[fit.eBayes_ii$ii,],
+                                       rownames = TRUE)
 }
 
 options(shiny.maxRequestSize=30000*1024^10)

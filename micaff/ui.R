@@ -39,7 +39,7 @@ shinyUI(
       fluidRow(
         actionButton("calculate.stats", "Calculate statistics and plot charts"),
         downloadButton("downloading.normalized.data", "Download normalized data"),
-        downloadButton("downloading.pvals", "Download the Bayesian statistics")
+        downloadButton("downloading.pvals", "Download statistics")
       ),
       br(), hr(), br(),
       tabsetPanel(
@@ -59,13 +59,15 @@ shinyUI(
                  br(),
                  plotOutput("ma.plot", height = "800px")
                  ),
-        tabPanel("Statistics summaries", 
-                 #plotOutput("volcano"),
-                 #plotOutput("dendrogram"),
+        tabPanel("Statistics summaries",
                  br(),
                  plotOutput("volcano.moderated", height = "800px"),
                  br(),
                  plotOutput("dentrogram.moderated", height = "800px")
+                 ),
+        tabPanel("Table of relevant genes",
+                 br(),
+                 tableOutput('table.relevant')
                  )
       )
     )
