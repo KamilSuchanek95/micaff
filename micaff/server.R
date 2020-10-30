@@ -273,8 +273,8 @@ display.report <- function(data, data.norm, input, output, num.probes, progress,
   # tutaj trzeba zrobic volcano i heatmap warunki oraz wybieranie po FDR lub nie
   my_column = ""
   if(input$FDR){my_column <<- "adj.P.Val"}else{my_column <<- "P.Value"}
-  my_index_p = which(tab[,my_column] < input$p.val.threshold)
-  my_index_fc = which(abs(tab[,"logFC"]) > input$f.c.threshold)
+  my_index_p = base::which(tab[,c(my_column)] < input$p.val.threshold)
+  my_index_fc = base::which(abs(tab[,"logFC"]) > input$f.c.threshold)
   my_index = intersect(my_index_p, my_index_fc)
   my_size = length(my_index)
   if(my_size < 1){
@@ -358,9 +358,10 @@ shinyServer(function(input, output, session) {
   })
   
   observeEvent(input$update.statistics.for.thresholds,{
-    my_column = ""
+    control = input$input.control.labels
+    my_column <<- ""
     if(input$FDR){my_column <<- "adj.P.Val"}else{my_column <<- "P.Value"}
-    my_index_p = which(tab[,my_column] < input$p.val.threshold)
+    my_index_p = which(tab[,c(my_column)] < input$p.val.threshold)
     my_index_fc = which(abs(tab[,"logFC"]) > input$f.c.threshold)
     my_index = intersect(my_index_p, my_index_fc)
     my_size = length(my_index)
