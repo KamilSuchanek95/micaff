@@ -1,8 +1,13 @@
 library(shiny)
 library(shinythemes)
+library(DT)
 
 shinyUI(
     fluidPage(theme = shinytheme("united"),
+              tags$style(HTML("
+              .tabbable > .nav > li > a[data-value='Statistics summaries'] {background-color: orange; color:black}
+              .tabbable > .nav > li > a[data-value='Table of relevant genes'] {background-color: orange; color:black}
+                              ")),
               br(),
       titlePanel("MicAff Application!"),
       br(),
@@ -10,12 +15,11 @@ shinyUI(
         column(3,
                radioButtons("normalization.algorithm", "Normalization algorithm:",
                        c("MAS-5" = "mas5",
-                         "RMA" = "rma"))
-               ),
-        column(3,
-               fileInput("read.affymetrix.files", "Choose files for analysis",
-                    multiple = TRUE,
-                    accept = c(".CEL", ".cel"))
+                         "RMA" = "rma")),
+               br(),
+               fileInput("read.affymetrix.files", "Choose CEL files for analysis",
+                         multiple = TRUE,
+                         accept = c(".CEL", ".cel"))
                ),
         column(3,
                selectInput(
@@ -27,16 +31,19 @@ shinyUI(
                numericInput("num.genes", "Number of relevant genes", 50, min = 2, max = NA, step = 1, width = NULL),
                actionButton("update.statistics.plots", "Update relevant genes"),
                hr(),
-               numericInput("p.val.threshold", "Threshold for p value", 0.5, min = 0, max = 1, step = 0.0001, width = NULL),
+               fluidRow(
+                 column(10, numericInput("p.val.threshold", "Threshold for p value", 0.05, min = 0, max = 1, step = 0.0001, width = NULL)),
+                 column(2, checkboxInput("FDR", "FDR", value = FALSE, width = NULL))
+               ),
                numericInput("f.c.threshold", "Threshold for fold change", 2, min = NA, max = NA, step = 0.1, width = NULL),
                actionButton("update.statistics.for.thresholds", "Update relevant genes for thresholds")
                )
       ),
       br(),
       fluidRow(
-        actionButton("calculate.stats", "Calculate statistics and plot charts"),
-        downloadButton("downloading.normalized.data", "Download normalized data"),
-        downloadButton("downloading.pvals", "Download statistics")
+        column(4,actionButton("calculate.stats", "Calculate statistics and plot charts")),
+        column(3,downloadButton("downloading.normalized.data", "Download normalized data")),
+        column(3,downloadButton("downloading.pvals", "Download statistics"))
       ),
       br(), hr(), br(),
       tabsetPanel(
@@ -56,16 +63,44 @@ shinyUI(
                  br(),
                  plotOutput("ma.plot", height = "800px")
                  ),
-        tabPanel("Statistics summaries",
+        tabPanel("Tabs for a specific number of genes",
                  br(),
-                 plotOutput("volcano.moderated", height = "800px"),
+                 uiOutput('title.specify'),
                  br(),
-                 plotOutput("dentrogram.moderated", height = "800px")
-                 ),
-        tabPanel("Table of relevant genes",
-                 br(),
-                 tableOutput('table.relevant')
+                 tabsetPanel(
+                   tabPanel("Statistics summaries",
+                            br(),
+                            plotOutput("volcano.moderated", height = "800px"),
+                            br(),
+                            plotOutput("dentrogram.moderated", height = "800px")
+                   ),
+                   tabPanel("Table of relevant genes",
+                            br(),
+                            DT::dataTableOutput('table.relevant')
+                   )
                  )
+                 ),
+        tabPanel("Tabs for genes within thresholds",
+                 br(),
+                 uiOutput('title.threshold'),
+                 br(),
+                 tabsetPanel(
+                   tabPanel("Statistics summaries",
+                            br(),
+                            plotOutput("volcano.moderated.threshold", height = "800px"),
+                            br(),
+                            plotOutput("dentrogram.moderated.threshold", height = "800px")
+                   ),
+                   tabPanel("Table of relevant genes",
+                            br(),
+                            DT::dataTableOutput('table.threshold.p.val')
+                   )
+                 )
+        ),
+        tabPanel("Table of all genes",
+                 br(),
+                 DT::dataTableOutput('table.all')
+        )
       )
     )
 )

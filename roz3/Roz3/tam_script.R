@@ -77,7 +77,7 @@ My_NUSE_Plot <- function(dataPLM) {
 }
 # Wczytanie danych
 cel = affy::ReadAffy(celfile.path = "/home/kamil/Pulpit/magisterka/dane tam/cel files")
-
+data = affy::ReadAffy(celfile.path = "/home/kamil/Pulpit/CEL_files_rename")
 # Dostosowanie nazw prób
 sampleNames(cel) = sub("\\.CEL$", "", sampleNames(cel))
 # liczba prób
@@ -216,8 +216,15 @@ tab
 
 topgenes = tab[tab[, "adj.P.Val"] < 0.05]
 dim(topgenes)
+rrr=tab[,"P.Value"] < 0.05
+topgenes = tab[rrr]
+dim(topgenes)
 
 library(hgu133plus2.db)
 library(AnnotationDbi)
 entrez_ids <- mapIds(hgu133plus2.db, row.names(data), column = c("SYMBOL"),keytype="PROBEID")
                      
+
+im = order(tab$P.Value)
+imtab = tab[im,]
+View(imtab)
