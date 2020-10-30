@@ -224,6 +224,7 @@ library(hgu133plus2.db)
 library(AnnotationDbi)
 entrez_ids <- mapIds(hgu133plus2.db, row.names(data), column = c("SYMBOL"),keytype="PROBEID")
                      
+# kobirty 1558631_at
 
 im = order(tab$P.Value)
 imtab = tab[im,]

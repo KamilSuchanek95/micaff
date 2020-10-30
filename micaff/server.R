@@ -183,7 +183,7 @@ My_volcano_moderated_threshold <- function(data.norm, control, my_index){
   grid()
   abline_h <- input$p.val.threshold
   abline_v <- input$f.c.threshold
-  abline(v = abline_v, lwd = 0.5, col = c('red'))
+  abline(v = c(-abline_v,abline_v), lwd = 0.5, col = c('red'))
   abline(h = -log10(abline_h), 
          col=c('red'), lwd = 0.5)
 }
@@ -202,6 +202,17 @@ My_heatmap <- function(data.norm, num.probes, control, my_intersect){
   rownames(mat_col) = colnames(data.norm)
   pheatmap(mat = abs(ii.mat), annotation_col = mat_col, main = "Heatmap")# , clustering_method = "complete")
   }
+My_FDR_select <- function(input){
+  if(input$FDR)
+  {
+    my_column = "adj.P.Val"
+  }
+  else
+  {
+    my_column = "P.Value"
+  }
+  return(my_column)
+}
 display.report <- function(data, data.norm, input, output, num.probes, progress, n, norm.alg){
   progress$inc(1/n, detail = "boxplot of unnormalized data")
   output$boxplot <- renderPlot({
@@ -242,7 +253,7 @@ display.report <- function(data, data.norm, input, output, num.probes, progress,
   })
   ###
   output$title.specify <- renderUI({
-    h3("Statistics and charts for specyfic number od genes")
+    h3("Statistics and charts for specyfic number of genes")
   })
   
   progress$inc(1/n, detail = "Volcano-plot with moderated statistics")
@@ -253,7 +264,7 @@ display.report <- function(data, data.norm, input, output, num.probes, progress,
   })
   ###
   progress$inc(1/n, detail = "heatmap plot")
-  output$dentrogram.moderated <- renderPlot({
+  output$dendrogram.moderated <- renderPlot({
     My_heatmap(data.norm = data.norm, num.probes = num.probes, control = control, my_intersect = fit.eBayes_ii$ii)
   })
   ###
@@ -271,8 +282,7 @@ display.report <- function(data, data.norm, input, output, num.probes, progress,
   output$table.all <- DT::renderDataTable({tab})
   ###
   # tutaj trzeba zrobic volcano i heatmap warunki oraz wybieranie po FDR lub nie
-  my_column = ""
-  if(input$FDR){my_column <<- "adj.P.Val"}else{my_column <<- "P.Value"}
+  my_column = My_FDR_select(input = input)
   my_index_p = base::which(tab[,c(my_column)] < input$p.val.threshold)
   my_index_fc = base::which(abs(tab[,"logFC"]) > input$f.c.threshold)
   my_index = intersect(my_index_p, my_index_fc)
@@ -293,7 +303,7 @@ display.report <- function(data, data.norm, input, output, num.probes, progress,
     output$volcano.moderated.threshold <- renderPlot({
         My_volcano_moderated_threshold(data.norm, control = control, my_index = my_index)
       })
-    output$dentrogram.moderated.threshold <- renderPlot({
+    output$dendrogram.moderated.threshold <- renderPlot({
       My_heatmap(data.norm = data.norm, num.probes = num.probes, control = control, my_intersect = my_index)
     })
     output$table.threshold.p.val <- DT::renderDataTable({tab[my_index,]})
@@ -351,7 +361,7 @@ shinyServer(function(input, output, session) {
       fit.eBayes_ii <<- My_volcano_moderated(data.norm, control = control, number.of.relevant.genes = number.of.relevant.genes)
     })
     ###
-    output$dentrogram.moderated <- renderPlot({
+    output$dendrogram.moderated <- renderPlot({
       My_heatmap(data.norm = data.norm, num.probes = num.probes, control = control, my_intersect = fit.eBayes_ii$ii)
     })
     output$table.relevant <- DT::renderDataTable({tab[fit.eBayes_ii$ii,]})
@@ -360,7 +370,9 @@ shinyServer(function(input, output, session) {
   observeEvent(input$update.statistics.for.thresholds,{
     control = input$input.control.labels
     my_column <<- ""
-    if(input$FDR){my_column <<- "adj.P.Val"}else{my_column <<- "P.Value"}
+
+    my_column = My_FDR_select(input = input)
+    
     my_index_p = which(tab[,c(my_column)] < input$p.val.threshold)
     my_index_fc = which(abs(tab[,"logFC"]) > input$f.c.threshold)
     my_index = intersect(my_index_p, my_index_fc)
@@ -381,10 +393,11 @@ shinyServer(function(input, output, session) {
       output$volcano.moderated.threshold <- renderPlot({
         My_volcano_moderated_threshold(data.norm, control = control, my_index = my_index)
       })
-      output$dentrogram.moderated.threshold <- renderPlot({
+      output$dendrogram.moderated.threshold <- renderPlot({
         My_heatmap(data.norm = data.norm, num.probes = num.probes, control = control, my_intersect = my_index)
       })
       output$table.threshold.p.val <- DT::renderDataTable({tab[my_index,]})
     }
   })
+  
 })

@@ -72,7 +72,7 @@ shinyUI(
                             br(),
                             plotOutput("volcano.moderated", height = "800px"),
                             br(),
-                            plotOutput("dentrogram.moderated", height = "800px")
+                            plotOutput("dendrogram.moderated", height = "800px")
                    ),
                    tabPanel("Table of relevant genes",
                             br(),
@@ -89,7 +89,7 @@ shinyUI(
                             br(),
                             plotOutput("volcano.moderated.threshold", height = "800px"),
                             br(),
-                            plotOutput("dentrogram.moderated.threshold", height = "800px")
+                            plotOutput("dendrogram.moderated.threshold", height = "800px")
                    ),
                    tabPanel("Table of relevant genes",
                             br(),
