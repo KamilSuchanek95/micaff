@@ -210,31 +210,14 @@ rownames(mat_col) = colnames(data.norm)
 pheatmap(mat = abs(ii.mat), annotation_col = mat_col, clustering_method = "complete")
 
 
-tab = topTable(fit.eBayes, coef = 2, adjust.method = "BH", number = 50, 
+tab = topTable(fit.eBayes, coef = 2, adjust.method = "BH", number = length(row.names(data)), 
                sort.by = "p")
 tab
 
-topgenes = tab[tab[, "adj.P.Val"] < 0.5]
+topgenes = tab[tab[, "adj.P.Val"] < 0.05]
 dim(topgenes)
 
-###
-lodd <- -log10(fit.eBayes$p.value[,2])
-o1 <- order(abs(Difference), decreasing = TRUE)[1:50]
-oo2 <- order(abs (fit.eBayes$t[,2]), decreasing = TRUE)[1:50]
-oo <- union (o1, oo2)
-ii <- intersect (o1, oo2)
-plot (Difference[-oo], lodd[-oo],
-      cex = .25, xlim = c (-3,3),
-      ylim = range(lodd), xlab = 'Average (log) Fold-change',
-      ylab = 'LOD score – Negative log10 of P-value')
-points(Difference [oo2], lodd [oo2],
-       pch = 5, col ='red', cex = 1,
-       lwd = 1)
-points (Difference[o1], lodd[o1],
-        pch = 18, col = 'blue', cex = 1, lwd = 1)
-
-title("Volcano Plot with moderated t-statistics")
-grid()
-abline(v = c(-1,1), lwd = 0.5)
-abline(h= c(-log10(0.05),-log10(0.01),-log10(0.001)), 
-       col=c('red','blue','black'), lwd = 0.5)
+library(hgu133plus2.db)
+library(AnnotationDbi)
+entrez_ids <- mapIds(hgu133plus2.db, row.names(data), column = c("SYMBOL"),keytype="PROBEID")
+                     

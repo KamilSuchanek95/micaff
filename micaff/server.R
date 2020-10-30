@@ -12,6 +12,12 @@ library(limma)
 library(shiny)
 library("pheatmap")
 
+options(shiny.maxRequestSize=30000*1024^10)
+.GlobalEnv$data <- 0
+.GlobalEnv$data.norm <- 0
+.GlobalEnv$num.probes <- 0
+.GlobalEnv$fit.eBayes_ii <- list()
+.GlobalEnv$norm.alg <- 0
 
 My_NUSE_data <- function(x,type=c("plot","values","stats","density"),ylim=c(0.9,1.2),...){
   
@@ -139,7 +145,7 @@ My_volcano_moderated <- function(data.norm, control, number.of.relevant.genes){
   text(Difference[ii], lodd[ii], row.names(data.norm)[ii], pos = 3)
   title("Volcano Plot with moderated t-statistics")
   grid()
-  abline(v = c(-1,1), lwd = 0.5)
+  abline(v = c(-2,-1,1,2), lwd = 0.5)
   abline(h= c(-log10(0.05),-log10(0.01),-log10(0.001)), 
          col=c('red','blue','black'), lwd = 0.5)
   #legend("topleft", , pch = c(5, 18), col = c('red', 'blue'), cex = 0.75, bg="transparent",
@@ -212,6 +218,7 @@ display.report <- function(data, data.norm, input, output, num.probes, progress,
   ###
   progress$inc(1/n, detail = "Volcano-plot with moderated statistics")
   number.of.relevant.genes = input$num.genes
+  fit.eBayes_ii <<- My_volcano_moderated(data.norm, control = control, number.of.relevant.genes = number.of.relevant.genes)
   output$volcano.moderated <- renderPlot({
     fit.eBayes_ii <<- My_volcano_moderated(data.norm, control = control, number.of.relevant.genes = number.of.relevant.genes)
   })
@@ -221,10 +228,9 @@ display.report <- function(data, data.norm, input, output, num.probes, progress,
     My_heatmap(data.norm = data.norm, num.probes = num.probes, control = control, fit.eBayes_ii = fit.eBayes_ii)
   })
   ###
-  tab = topTable(fit.eBayes, coef = 2, adjust.method = "BH", number = length(exprs(data.norm)), 
+  tab = topTable(fit.eBayes_ii$fit.eBayes, coef = 2, adjust.method = "BH", number = length(exprs(data.norm)), 
                  sort.by = "none")
   progress$inc(1/n, detail = "preparing to share statistics")
-  # rowidx = order(abs(fit.eBayes$t[,"population.groupsTest"]))
   output$downloading.pvals <- downloadHandler(
     filename =  function() {paste("p-vals_", norm.alg,".txt", sep = "")},
     content = function(file) {write.table(tab, file = file)}
@@ -233,13 +239,6 @@ display.report <- function(data, data.norm, input, output, num.probes, progress,
   output$table.relevant <- renderTable(tab[fit.eBayes_ii$ii,],
                                        rownames = TRUE)
 }
-
-options(shiny.maxRequestSize=30000*1024^10)
-.GlobalEnv$data <- 0
-.GlobalEnv$data.norm <- 0
-.GlobalEnv$num.probes <- 0
-.GlobalEnv$fit.eBayes_ii <- 0
-.GlobalEnv$norm.alg <- 0
 
 shinyServer(function(input, output, session) {
   

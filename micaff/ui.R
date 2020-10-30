@@ -1,13 +1,6 @@
 library(shiny)
 library(shinythemes)
 
-
-#library(shinyjs)
-
-#jsfile <- "getdata.js"
-#cssfile <- "style.css"
-#js_scroll_file <-'scroll.js'
-
 shinyUI(
     fluidPage(theme = shinytheme("united"),
               br(),
@@ -30,9 +23,13 @@ shinyUI(
             choices =  c("first you have to load data!", "--none--"),
             multiple = TRUE, selected = c("first you have to load data!", "--none--"))
                ),
-        column(3,
-               numericInput("num.genes", "Number of relevant genes", 50, min = 2, max = 150, step = 1, width = NULL),
-               actionButton("update.statistics.plots", "Update relevant genes")
+        column(4,
+               numericInput("num.genes", "Number of relevant genes", 50, min = 2, max = NA, step = 1, width = NULL),
+               actionButton("update.statistics.plots", "Update relevant genes"),
+               hr(),
+               numericInput("p.val.threshold", "Threshold for p value", 0.5, min = 0, max = 1, step = 0.0001, width = NULL),
+               numericInput("f.c.threshold", "Threshold for fold change", 2, min = NA, max = NA, step = 0.1, width = NULL),
+               actionButton("update.statistics.for.thresholds", "Update relevant genes for thresholds")
                )
       ),
       br(),
