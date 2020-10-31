@@ -154,7 +154,7 @@ My_volcano_moderated <- function(data.norm, control, number.of.relevant.genes){
   My_list <- list("fit.eBayes" = fit.eBayes, "ii" = ii)
   return(My_list)
 }
-My_volcano_moderated_threshold <- function(data.norm, control, my_index){
+My_volcano_moderated_threshold <- function(data.norm, control, my_index, input){
   exprs.eset <- exprs(data.norm)
   control.array = match(control, sampleNames(data.norm))
   Difference <- rowMeans(exprs.eset[,-control.array]) - rowMeans(exprs.eset[,control.array])
@@ -301,7 +301,7 @@ display.report <- function(data, data.norm, input, output, num.probes, progress,
       h3("Statistics and charts for genes within thresholds")
       })
     output$volcano.moderated.threshold <- renderPlot({
-        My_volcano_moderated_threshold(data.norm, control = control, my_index = my_index)
+        My_volcano_moderated_threshold(data.norm, control = control, my_index = my_index, input = input)
       })
     output$dendrogram.moderated.threshold <- renderPlot({
       My_heatmap(data.norm = data.norm, num.probes = num.probes, control = control, my_intersect = my_index)
@@ -391,7 +391,7 @@ shinyServer(function(input, output, session) {
         h3("Statistics and charts for genes within thresholds")
       })
       output$volcano.moderated.threshold <- renderPlot({
-        My_volcano_moderated_threshold(data.norm, control = control, my_index = my_index)
+        My_volcano_moderated_threshold(data.norm, control = control, my_index = my_index, input = input)
       })
       output$dendrogram.moderated.threshold <- renderPlot({
         My_heatmap(data.norm = data.norm, num.probes = num.probes, control = control, my_intersect = my_index)
