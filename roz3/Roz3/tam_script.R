@@ -229,3 +229,14 @@ my_gen <- mapIds(hgu133plus2.db, "1558631_at", column = c("SYMBOL"),keytype="PRO
 im = order(tab$P.Value)
 imtab = tab[im,]
 View(imtab)
+
+# w publikacji podają ponas 1600 instotnych genów >0.05 i intensywnosc >30(mediana)
+ppp = which(tab[,"AveExpr"] > 4.9)
+pv = which(tab[,"P.Value"] < 0.05)
+iii = intersect(ppp, pv)
+length(iii)
+
+mediany.norm = apply(exprs(data.norm),1,median)
+ppp2 = which(mediany.norm > log2(30))
+iii2 = intersect(ppp2, pv)
+

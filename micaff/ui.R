@@ -19,7 +19,11 @@ shinyUI(
                br(),
                fileInput("read.affymetrix.files", "Choose CEL files for analysis",
                          multiple = TRUE,
-                         accept = c(".CEL", ".cel"))
+                         accept = c(".CEL", ".cel")),
+               br(),
+               checkboxInput("do.qc", "Perform quality control", value = TRUE, width = NULL),
+               br(),
+               checkboxInput("do.check", "Check the normalization results", value = TRUE, width = NULL)
                ),
         column(3,
                selectInput(

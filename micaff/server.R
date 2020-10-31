@@ -214,14 +214,16 @@ My_FDR_select <- function(input){
   return(my_column)
 }
 display.report <- function(data, data.norm, input, output, num.probes, progress, n, norm.alg){
+  control = input$input.control.labels
   progress$inc(1/n, detail = "boxplot of unnormalized data")
+  if(input$do.qc){
   output$boxplot <- renderPlot({
     My_Box_Plot(data = data, num.probes = num.probes, ylab = "Unprocessed log (base 2)scale Probe Intensities", main = "Boxplot of unnormalized data")
   })
   ###
   progress$inc(1/n, detail = "calculating and plot qc report")
   par()
-  if(FALSE){qc = simpleaffy::qc(data)
+  qc = simpleaffy::qc(data)
   output$qc.stats.plot <- renderImage({
     outfile <- tempfile(fileext = '.png')
     width2 <- 100
@@ -239,18 +241,20 @@ display.report <- function(data, data.norm, input, output, num.probes, progress,
     My_NUSE_Plot(dataPLM)
   })
   output$rle.plot <- renderPlot({
-    My_RLE_Plot(dataPLM)})}
+    My_RLE_Plot(dataPLM)})
   ### 
+  }
+  if(input$do.check){
   progress$inc(1/n, detail = "boxplot of normalized data")
   output$boxplot.norm <- renderPlot({
     My_Box_Plot(data = data.norm, num.probes = num.probes, ylab = "Normalized log (base 2)scale Probe Intensities", main = "Boxplot of normalized data")
   })
   ###
   progress$inc(1/n, detail = "MA plot")
-  control = input$input.control.labels
   output$ma.plot <- renderPlot({
     My_MA_Plot(data.norm = data.norm, control = control)
   })
+  }
   ###
   output$title.specify <- renderUI({
     h3("Statistics and charts for specyfic number of genes")
