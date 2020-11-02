@@ -1,3 +1,5 @@
+library(BiocManager)
+options(repos = BiocManager::repositories())
 # BiocManager::install("affy")
 library(affy)
 library("genefilter")
@@ -16,10 +18,23 @@ options(shiny.maxRequestSize=30000*1024^10)
 .GlobalEnv$data <- 0
 .GlobalEnv$data.norm <- 0
 .GlobalEnv$num.probes <- 0
-.GlobalEnv$fit.eBayes_ii <- list()
+.GlobalEnv$fit.eBayes <- 0
+.GlobalEnv$ii <- 0
 .GlobalEnv$norm.alg <- 0
 .GlobalEnv$tab <- 0
+.GlobalEnv$control <- list()
 
+My_FDR_select <- function(input.checkbox){
+  if(input.checkbox)
+  {
+    my_column = "adj.P.Val"
+  }
+  else
+  {
+    my_column = "P.Value"
+  }
+  return(my_column)
+}
 My_NUSE_data <- function(x,type=c("plot","values","stats","density"),ylim=c(0.9,1.2),...){
   
   compute.nuse <- function(which){
@@ -116,26 +131,31 @@ My_MA_Plot <- function(data.norm, control){
   abline(h = -2)
   abline(h = 2)
 }
-My_volcano_moderated <- function(data.norm, control, number.of.relevant.genes){
-  exprs.eset <- exprs(data.norm)
-  control.array = match(control, sampleNames(data.norm))
-  Difference <- rowMeans(exprs.eset[,-control.array]) - rowMeans(exprs.eset[,control.array])
+My_fit.eBayes <- function(data.norm, control){
   control.idx = which(sampleNames(data.norm) %in% control)
   fac = c()
   fac[1:num.probes] = "Test"
   fac[control.idx] = "Control"
   population.groups <- factor(fac)
   design <- model.matrix(~population.groups)
-  fit <- lmFit (data.norm, design)
-  fit.eBayes <- eBayes (fit)
+  fit <- lmFit(data.norm, design)
+  fit.eBayes <- eBayes(fit)
+  return(fit.eBayes)
+}
+My_volcano_moderated <- function(data.norm, control, number.of.relevant.genes, tab, input){
+  exprs.eset <- exprs(data.norm)
+  control.array = match(control, sampleNames(data.norm))
+  Difference <- rowMeans(exprs.eset[,-control.array]) - rowMeans(exprs.eset[,control.array])
   
-  lodd <- -log10(fit.eBayes$p.value[,2])
+  my_column = My_FDR_select(input.checkbox = input$FDR.number)
+  lodd <- -log10(tab[,my_column])
+  
   o1 <- order(abs(Difference), decreasing = TRUE)[1:number.of.relevant.genes]
-  oo2 <- order(abs (fit.eBayes$t[,2]), decreasing = TRUE)[1:number.of.relevant.genes]
+  oo2 <- order(abs(tab[,my_column]), decreasing = FALSE)[1:number.of.relevant.genes]
   oo <- union (o1, oo2)
   ii <- intersect (o1, oo2)
   plot (Difference[-oo], lodd[-oo],
-        cex = .25, xlim = c (-3,3),
+        cex = .25, xlim = range(Difference),
         ylim = range(lodd), xlab = 'Average (log) Fold-change',
         ylab = 'LOD score – Negative log10 of P-value')
   points(Difference [oo2], lodd [oo2],
@@ -149,28 +169,18 @@ My_volcano_moderated <- function(data.norm, control, number.of.relevant.genes){
   abline(v = c(-2,-1,1,2), lwd = 0.5)
   abline(h= c(-log10(0.05),-log10(0.01),-log10(0.001)), 
          col=c('red','blue','black'), lwd = 0.5)
-  #legend("topleft", , pch = c(5, 18), col = c('red', 'blue'), cex = 0.75, bg="transparent",
-  #       legend = c("First 50 with the lowest p value","First 50 with the highest Fold-change value"))
-  My_list <- list("fit.eBayes" = fit.eBayes, "ii" = ii)
-  return(My_list)
+  return(ii)
 }
-My_volcano_moderated_threshold <- function(data.norm, control, my_index){
+My_volcano_moderated_threshold <- function(data.norm, control, my_index, tab, input){
   exprs.eset <- exprs(data.norm)
   control.array = match(control, sampleNames(data.norm))
   Difference <- rowMeans(exprs.eset[,-control.array]) - rowMeans(exprs.eset[,control.array])
-  control.idx = which(sampleNames(data.norm) %in% control)
-  fac = c()
-  fac[1:num.probes] = "Test"
-  fac[control.idx] = "Control"
-  population.groups <- factor(fac)
-  design <- model.matrix(~population.groups)
-  fit <- lmFit (data.norm, design)
-  fit.eBayes <- eBayes (fit)
-  
-  lodd <- -log10(fit.eBayes$p.value[,2])
 
+  my_col <- My_FDR_select(input.checkbox =  input$FDR)
+  lodd <- -log10(tab[,my_col])
+  
   plot (Difference[-my_index], lodd[-my_index],
-        cex = .25, xlim = c (-3,3),
+        cex = .25, xlim = range(Difference),
         ylim = range(lodd), xlab = 'Average (log) Fold-change',
         ylab = 'LOD score – Negative log10 of P-value')
   points(Difference [my_index], lodd [my_index],
@@ -202,26 +212,17 @@ My_heatmap <- function(data.norm, num.probes, control, my_intersect){
   rownames(mat_col) = colnames(data.norm)
   pheatmap(mat = abs(ii.mat), annotation_col = mat_col, main = "Heatmap")# , clustering_method = "complete")
   }
-My_FDR_select <- function(input){
-  if(input$FDR)
-  {
-    my_column = "adj.P.Val"
-  }
-  else
-  {
-    my_column = "P.Value"
-  }
-  return(my_column)
-}
 display.report <- function(data, data.norm, input, output, num.probes, progress, n, norm.alg){
+  control <<- input$input.control.labels
   progress$inc(1/n, detail = "boxplot of unnormalized data")
+  if(input$do.qc){
   output$boxplot <- renderPlot({
     My_Box_Plot(data = data, num.probes = num.probes, ylab = "Unprocessed log (base 2)scale Probe Intensities", main = "Boxplot of unnormalized data")
   })
   ###
   progress$inc(1/n, detail = "calculating and plot qc report")
   par()
-  if(FALSE){qc = simpleaffy::qc(data)
+  qc = simpleaffy::qc(data)
   output$qc.stats.plot <- renderImage({
     outfile <- tempfile(fileext = '.png')
     width2 <- 100
@@ -239,18 +240,20 @@ display.report <- function(data, data.norm, input, output, num.probes, progress,
     My_NUSE_Plot(dataPLM)
   })
   output$rle.plot <- renderPlot({
-    My_RLE_Plot(dataPLM)})}
+    My_RLE_Plot(dataPLM)})
   ### 
+  }
+  if(input$do.check){
   progress$inc(1/n, detail = "boxplot of normalized data")
   output$boxplot.norm <- renderPlot({
     My_Box_Plot(data = data.norm, num.probes = num.probes, ylab = "Normalized log (base 2)scale Probe Intensities", main = "Boxplot of normalized data")
   })
   ###
   progress$inc(1/n, detail = "MA plot")
-  control = input$input.control.labels
   output$ma.plot <- renderPlot({
     My_MA_Plot(data.norm = data.norm, control = control)
   })
+  }
   ###
   output$title.specify <- renderUI({
     h3("Statistics and charts for specyfic number of genes")
@@ -258,31 +261,31 @@ display.report <- function(data, data.norm, input, output, num.probes, progress,
   
   progress$inc(1/n, detail = "Volcano-plot with moderated statistics")
   number.of.relevant.genes = input$num.genes
-  fit.eBayes_ii <<- My_volcano_moderated(data.norm, control = control, number.of.relevant.genes = number.of.relevant.genes)
+  fit.eBayes <<- My_fit.eBayes(data.norm = data.norm, control = control)
+  tab <<- topTable(fit.eBayes, coef = 2, adjust.method = "BH", 
+                   number = length(exprs(data.norm)), sort.by = "none")
+  ii <<- My_volcano_moderated(data.norm, control = control, number.of.relevant.genes = number.of.relevant.genes, tab = tab, input = input)
   output$volcano.moderated <- renderPlot({
-    My_volcano_moderated(data.norm, control = control, number.of.relevant.genes = number.of.relevant.genes)
+    My_volcano_moderated(data.norm, control = control, number.of.relevant.genes = number.of.relevant.genes, tab = tab, input = input)
   })
   ###
   progress$inc(1/n, detail = "heatmap plot")
   output$dendrogram.moderated <- renderPlot({
-    My_heatmap(data.norm = data.norm, num.probes = num.probes, control = control, my_intersect = fit.eBayes_ii$ii)
+    My_heatmap(data.norm = data.norm, num.probes = num.probes, control = control, 
+               my_intersect = ii)
   })
   ###
-  tab <<- topTable(fit.eBayes_ii$fit.eBayes, coef = 2, adjust.method = "BH", 
-                   number = length(exprs(data.norm)), sort.by = "none")
-  
   progress$inc(1/n, detail = "preparing to share statistics")
   output$downloading.pvals <- downloadHandler(
     filename =  function() {paste("p-vals_", norm.alg,".txt", sep = "")},
     content = function(file) {write.table(tab, file = file)}
   )
   ###
-  output$table.relevant <- DT::renderDataTable({tab[fit.eBayes_ii$ii,]})
+  output$table.relevant <- DT::renderDataTable({tab[ii,]})
   ###
   output$table.all <- DT::renderDataTable({tab})
   ###
-  # tutaj trzeba zrobic volcano i heatmap warunki oraz wybieranie po FDR lub nie
-  my_column = My_FDR_select(input = input)
+  my_column = My_FDR_select(input.checkbox = input$FDR)
   my_index_p = base::which(tab[,c(my_column)] < input$p.val.threshold)
   my_index_fc = base::which(abs(tab[,"logFC"]) > input$f.c.threshold)
   my_index = intersect(my_index_p, my_index_fc)
@@ -301,7 +304,7 @@ display.report <- function(data, data.norm, input, output, num.probes, progress,
       h3("Statistics and charts for genes within thresholds")
       })
     output$volcano.moderated.threshold <- renderPlot({
-        My_volcano_moderated_threshold(data.norm, control = control, my_index = my_index)
+        My_volcano_moderated_threshold(data.norm, control = control, my_index = my_index, tab = tab, input = input)
       })
     output$dendrogram.moderated.threshold <- renderPlot({
       My_heatmap(data.norm = data.norm, num.probes = num.probes, control = control, my_intersect = my_index)
@@ -358,20 +361,20 @@ shinyServer(function(input, output, session) {
     number.of.relevant.genes = input$num.genes
     control = input$input.control.labels
     output$volcano.moderated <- renderPlot({
-      fit.eBayes_ii <<- My_volcano_moderated(data.norm, control = control, number.of.relevant.genes = number.of.relevant.genes)
+      ii <<- My_volcano_moderated(data.norm, control = control, number.of.relevant.genes = number.of.relevant.genes, tab = tab, input = input)
     })
     ###
     output$dendrogram.moderated <- renderPlot({
-      My_heatmap(data.norm = data.norm, num.probes = num.probes, control = control, my_intersect = fit.eBayes_ii$ii)
+      My_heatmap(data.norm = data.norm, num.probes = num.probes, 
+                 control = control, my_intersect = ii)
     })
-    output$table.relevant <- DT::renderDataTable({tab[fit.eBayes_ii$ii,]})
+    output$table.relevant <- DT::renderDataTable({tab[ii,]})
   })
   
   observeEvent(input$update.statistics.for.thresholds,{
     control = input$input.control.labels
     my_column <<- ""
-
-    my_column = My_FDR_select(input = input)
+    my_column = My_FDR_select(input.checkbox = input$FDR)
     
     my_index_p = which(tab[,c(my_column)] < input$p.val.threshold)
     my_index_fc = which(abs(tab[,"logFC"]) > input$f.c.threshold)
@@ -391,7 +394,7 @@ shinyServer(function(input, output, session) {
         h3("Statistics and charts for genes within thresholds")
       })
       output$volcano.moderated.threshold <- renderPlot({
-        My_volcano_moderated_threshold(data.norm, control = control, my_index = my_index)
+        My_volcano_moderated_threshold(data.norm, control = control, my_index = my_index, tab = tab, input = input)
       })
       output$dendrogram.moderated.threshold <- renderPlot({
         My_heatmap(data.norm = data.norm, num.probes = num.probes, control = control, my_intersect = my_index)

@@ -79,12 +79,12 @@ My_NUSE_Plot <- function(dataPLM) {
 cel = affy::ReadAffy(celfile.path = "/home/kamil/Pulpit/magisterka/dane tam/cel files")
 data = affy::ReadAffy(celfile.path = "/home/kamil/Pulpit/CEL_files_rename")
 # Dostosowanie nazw prób
-sampleNames(cel) = sub("\\.CEL$", "", sampleNames(cel))
+sampleNames(data) = sub("\\.CEL$", "", sampleNames(data))
 # liczba prób
-num.probes = length(sampleNames(cel))
+num.probes = length(sampleNames(data))
 
 # Normalizacja danych
-eset.mas5 = simpleaffy::call.exprs(cel, "mas5")
+eset.mas5 = simpleaffy::call.exprs(data, "mas5")
 eset.rma = simpleaffy::call.exprs(cel, "rma")
 
 # Wykres pudełkowy
@@ -139,7 +139,7 @@ control = c( "C002_Control_F_87", "C005_Control_M_91", "C006_Control_F_71", "C00
              "C025_Control_F_88", "C023_Control_M_38", "C026_Control_M_58", "C021_Control_M_25",
              "C027_Control_M_90", "C008_Control_F_94", "C028_Control_F_54")
 data = cel
-control.array = match(controls, sampleNames(data))
+control.array = match(control, sampleNames(data))
 Difference <- rowMeans(exprs.eset[,-control.array]) - rowMeans(exprs.eset[,control.array])
 Average <- rowMeans(exprs.eset)
 plot(Average, Difference)
@@ -148,9 +148,9 @@ lines(lowess(Average, Difference),
 abline(h = -2)
 abline(h = 2)
 
-control.array = match(controls, sampleNames(data))
+control.array = match(control, sampleNames(data))
 Difference <- rowMeans(exprs.eset[,-control.array]) - rowMeans(exprs.eset[,control.array])
-control.idx = which(sampleNames(cel) %in% controls)
+control.idx = which(sampleNames(data) %in% control)
 fac = c()
 fac[1:num.probes] = "Test"
 fac[control.idx] = "Control"
@@ -210,7 +210,7 @@ rownames(mat_col) = colnames(data.norm)
 pheatmap(mat = abs(ii.mat), annotation_col = mat_col, clustering_method = "complete")
 
 
-tab = topTable(fit.eBayes, coef = 2, adjust.method = "BH", number = length(row.names(data)), 
+tab = topTable(fit.eBayes, coef = 2, adjust.method = "BH", number = 50,#length(row.names(data)), 
                sort.by = "p")
 tab
 
@@ -222,10 +222,82 @@ dim(topgenes)
 
 library(hgu133plus2.db)
 library(AnnotationDbi)
-entrez_ids <- mapIds(hgu133plus2.db, row.names(data), column = c("SYMBOL"),keytype="PROBEID")
+my_gen <- mapIds(hgu133plus2.db, "1558631_at", column = c("SYMBOL"),keytype="PROBEID")
                      
 # kobirty 1558631_at
 
 im = order(tab$P.Value)
 imtab = tab[im,]
 View(imtab)
+
+# w publikacji podają ponas 1600 instotnych genów >0.05 i intensywnosc >30(mediana)
+ppp = which(tab[,"AveExpr"] > 4.9)
+pv = which(tab[,"P.Value"] < 0.05)
+iii = intersect(ppp, pv)
+length(iii)
+
+mediany.norm = apply(exprs(data.norm),1,median)
+ppp2 = which(mediany.norm > log2(30))
+iii2 = intersect(ppp2, pv)
+
+ annotatedTopTable <- function(topTab, anotPackage)
+   {
+     topTab <- cbind(PROBEID=rownames(topTab), topTab)
+     myProbes <- rownames(topTab)
+     thePackage <- eval(parse(text = anotPackage))
+     geneAnots <- select(thePackage, myProbes, c("SYMBOL", "ENTREZID",
+                                                  "GENENAME"))
+     annotatedTopTab<- merge(x=geneAnots, y=topTab, by.x="PROBEID",
+                              by.y="PROBEID", sort = TRUE)
+     return(annotatedTopTab)
+     }
+g = annotatedTopTable(tab, paste(data@annotation, ".db", sep = ""))#"hgu133plus2.db")
+g
+order_pval = order(g[,"P.Value"])
+g[order_pval,]
+
+My_volcano_moderated_threshold <- function(data.norm, control, my_index, tab){
+  exprs.eset <- exprs(data.norm)
+  control.array = match(control, sampleNames(data.norm))
+  Difference <- rowMeans(exprs.eset[,-control.array]) - rowMeans(exprs.eset[,control.array])
+  control.idx = which(sampleNames(data.norm) %in% control)
+  fac = c()
+  fac[1:num.probes] = "Test"
+  fac[control.idx] = "Control"
+  population.groups <- factor(fac)
+  design <- model.matrix(~population.groups)
+  fit <- lmFit (data.norm, design)
+  fit.eBayes <- eBayes (fit)
+  
+  #lodd <- -log10(fit.eBayes$p.value[,2])
+  lodd <- -log10(tab[,"adj.P.Val"])
+  
+  plot (Difference[-my_index], lodd[-my_index],
+        cex = .25, xlim = c (-3,3),
+        ylim = range(lodd), xlab = 'Average (log) Fold-change',
+        ylab = 'LOD score – Negative log10 of P-value')
+  points(Difference [my_index], lodd [my_index],
+         pch = 5, col ='red', cex = 1,
+         lwd = 1)
+  points (Difference[my_index], lodd[my_index],
+          pch = 18, col = 'blue', cex = 1, lwd = 1)
+  #text(Difference[my_index], lodd[my_index], row.names(data.norm)[my_index], pos = 3)
+  title("Volcano Plot with moderated t-statistics")
+  grid()
+
+  abline(v = c(-2,2), lwd = 0.5, col = c('red'))
+  abline(h = -log10(0.05), 
+         col=c('red'), lwd = 0.5)
+}
+
+subb = substr(colnames(data), start = 1, stop = 4)
+idx = which(subb == "norm")
+control = colnames(data)[idx]
+thresholded_p.val = which(tab[,"adj.P.Val"] < 0.05)
+thresholded_f.c = which(abs(tab[,"logFC"]) > 2)
+iii = intersect(thresholded_f.c, thresholded_p.val)
+My_volcano_moderated_threshold(data.norm, control, iii, tab)
+new_tab = tab[iii,]
+g = annotatedTopTable(new_tab, "hgu95av2.db")
+my_order = order(g[,"adj.P.Val"])
+g[my_order,]

@@ -19,7 +19,11 @@ shinyUI(
                br(),
                fileInput("read.affymetrix.files", "Choose CEL files for analysis",
                          multiple = TRUE,
-                         accept = c(".CEL", ".cel"))
+                         accept = c(".CEL", ".cel")),
+               br(),
+               checkboxInput("do.qc", "Perform quality control", value = TRUE, width = NULL),
+               br(),
+               checkboxInput("do.check", "Check the normalization results", value = TRUE, width = NULL)
                ),
         column(3,
                selectInput(
@@ -29,7 +33,10 @@ shinyUI(
                ),
         column(4,
                numericInput("num.genes", "Number of relevant genes", 50, min = 2, max = NA, step = 1, width = NULL),
-               actionButton("update.statistics.plots", "Update relevant genes"),
+               fluidRow(
+                 column(7,actionButton("update.statistics.plots", "Update relevant genes")),
+                 column(1,checkboxInput("FDR.number", "FDR", value = FALSE, width = NULL))
+               ),
                hr(),
                fluidRow(
                  column(10, numericInput("p.val.threshold", "Threshold for p value", 0.05, min = 0, max = 1, step = 0.0001, width = NULL)),
@@ -42,7 +49,7 @@ shinyUI(
       br(),
       fluidRow(
         column(4,actionButton("calculate.stats", "Calculate statistics and plot charts")),
-        column(3,downloadButton("downloading.normalized.data", "Download normalized data")),
+        column(4,downloadButton("downloading.normalized.data", "Download normalized data")),
         column(3,downloadButton("downloading.pvals", "Download statistics"))
       ),
       br(), hr(), br(),
