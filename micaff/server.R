@@ -1,18 +1,23 @@
-library(BiocManager)
-options(repos = BiocManager::repositories())
-# BiocManager::install("affy")
-library(affy)
-library("genefilter")
-library("RColorBrewer")
-# BiocManager::install("simpleaffy")
-library(simpleaffy)
-library(latticeExtra)
-# BiocManager::install("affyPLM")
-library(affyPLM)
+
 # BiocManager::install("limma")
+# BiocManager::install("affy")
+# BiocManager::install("simpleaffy")
+# BiocManager::install("affyPLM")
+
+options(repos = BiocManager::repositories())
+
+library(BiocManager)
+library(affy)
+library(genefilter)
+library(simpleaffy)
+library(affyPLM)
 library(limma)
+
 library(shiny)
-library("pheatmap")
+library(latticeExtra)
+library(RColorBrewer)
+
+library(pheatmap)
 
 options(shiny.maxRequestSize=30000*1024^10)
 .GlobalEnv$data <- 0

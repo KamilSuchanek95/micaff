@@ -240,8 +240,7 @@ mediany.norm = apply(exprs(data.norm),1,median)
 ppp2 = which(mediany.norm > log2(30))
 iii2 = intersect(ppp2, pv)
 
- annotatedTopTable <- function(topTab, anotPackage)
-   {
+ annotatedTopTable <- function(topTab, anotPackage) {
      topTab <- cbind(PROBEID=rownames(topTab), topTab)
      myProbes <- rownames(topTab)
      thePackage <- eval(parse(text = anotPackage))
@@ -294,10 +293,12 @@ subb = substr(colnames(data), start = 1, stop = 4)
 idx = which(subb == "norm")
 control = colnames(data)[idx]
 thresholded_p.val = which(tab[,"adj.P.Val"] < 0.05)
-thresholded_f.c = which(abs(tab[,"logFC"]) > 2)
+thresholded_f.c = which(abs(tab[,"logFC"]) > 1.4)
 iii = intersect(thresholded_f.c, thresholded_p.val)
 My_volcano_moderated_threshold(data.norm, control, iii, tab)
 new_tab = tab[iii,]
-g = annotatedTopTable(new_tab, "hgu95av2.db")
+g = annotatedTopTable(new_tab, paste(data@annotation,".db",sep = ""))#"hgu95av2.db")
 my_order = order(g[,"adj.P.Val"])
-g[my_order,]
+g[my_order,c("PROBEID","SYMBOL","GENENAME","P.Value","adj.P.Val","logFC")]
+
+mapIds(hgu133plus2.db, c("1562245_a_at","204286_s_at"), column = c("GENENAME"),keytype="PROBEID")

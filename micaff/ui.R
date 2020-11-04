@@ -34,8 +34,8 @@ shinyUI(
         column(4,
                numericInput("num.genes", "Number of relevant genes", 50, min = 2, max = NA, step = 1, width = NULL),
                fluidRow(
-                 column(7,actionButton("update.statistics.plots", "Update relevant genes")),
-                 column(1,checkboxInput("FDR.number", "FDR", value = FALSE, width = NULL))
+                 column(10,actionButton("update.statistics.plots", "Update relevant genes")),
+                 column(2,checkboxInput("FDR.number", "FDR", value = FALSE, width = NULL))
                ),
                hr(),
                fluidRow(
@@ -48,9 +48,11 @@ shinyUI(
       ),
       br(),
       fluidRow(
-        column(4,actionButton("calculate.stats", "Calculate statistics and plot charts")),
-        column(4,downloadButton("downloading.normalized.data", "Download normalized data")),
-        column(3,downloadButton("downloading.pvals", "Download statistics"))
+        column(6,actionButton("calculate.stats", "Calculate statistics and plot charts")),
+        column(6,
+               downloadButton("downloading.normalized.data", "Download normalized data"),
+               br(),
+               downloadButton("downloading.pvals", "Download statistics"))
       ),
       br(), hr(), br(),
       tabsetPanel(
