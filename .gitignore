@@ -40,8 +40,5 @@ vignettes/*.pdf
 *.utf8.md
 *.knit.md
 
-*.docx
-
-*.pdf
 
 *.png
